@@ -1,0 +1,3435 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#06101c">
+  <title>厌氧发酵酸积累智能调控系统</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #040a13;
+      --bg-deep: #02060c;
+      --panel: rgba(7, 25, 43, 0.94);
+      --panel-solid: #0a1c2c;
+      --panel-soft: rgba(12, 41, 63, 0.86);
+      --line: rgba(81, 181, 215, 0.3);
+      --line-strong: rgba(91, 224, 249, 0.62);
+      --text: #effcff;
+      --muted: #a1c8d8;
+      --faint: #7198ab;
+      --cyan: #37dbf2;
+      --cyan-soft: #6ae4f2;
+      --blue: #3d8eff;
+      --green: #2ce8a5;
+      --amber: #ffbd48;
+      --orange: #ff8a42;
+      --red: #ff5667;
+      --state: var(--orange);
+      --state-rgb: 255, 138, 66;
+      --state-soft: rgba(var(--state-rgb), 0.12);
+      --state-glow: rgba(var(--state-rgb), 0.32);
+      --radius: 4px;
+      --font: "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+      --mono: "JetBrains Mono", "Cascadia Mono", "Consolas", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-width: 320px;
+      background: var(--bg-deep);
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      overflow-x: hidden;
+      font-family: var(--font);
+      color: var(--text);
+      background:
+        radial-gradient(circle at 55% -20%, rgba(35, 138, 186, 0.24), transparent 44%),
+        radial-gradient(circle at 92% 22%, rgba(30, 125, 168, 0.16), transparent 34%),
+        linear-gradient(155deg, #0a1b2a 0%, #06111e 48%, #030912 100%);
+    }
+
+    body::before {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      content: "";
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(65, 148, 181, 0.028) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(65, 148, 181, 0.028) 1px, transparent 1px);
+      background-size: 28px 28px;
+      mask-image: linear-gradient(to bottom, black, transparent 88%);
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      color: inherit;
+    }
+
+    svg text {
+      font-family: var(--font);
+    }
+
+    .app {
+      width: min(1920px, 100%);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 0 22px 22px;
+    }
+
+    .topbar {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) minmax(410px, 1.5fr) minmax(330px, 1fr);
+      align-items: center;
+      min-height: 76px;
+      border-bottom: 1px solid rgba(72, 182, 218, 0.24);
+    }
+
+    .topbar::after {
+      position: absolute;
+      bottom: -1px;
+      left: 50%;
+      width: 42%;
+      height: 1px;
+      content: "";
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      box-shadow: 0 0 18px rgba(55, 219, 242, 0.55);
+      transform: translateX(-50%);
+    }
+
+    .brand {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      position: relative;
+      display: grid;
+      flex: 0 0 37px;
+      width: 37px;
+      height: 42px;
+      place-items: center;
+      color: var(--cyan);
+      filter: drop-shadow(0 0 8px rgba(55, 219, 242, 0.36));
+    }
+
+    .brand-mark::before,
+    .brand-mark::after {
+      position: absolute;
+      inset: 2px 3px;
+      content: "";
+      clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+    }
+
+    .brand-mark::before {
+      background: rgba(55, 219, 242, 0.17);
+      border: 1px solid var(--cyan);
+    }
+
+    .brand-mark::after {
+      inset: 9px 10px;
+      background: var(--cyan);
+      box-shadow: 0 0 10px var(--cyan);
+    }
+
+    .brand-title {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+
+    .brand-subtitle {
+      margin-top: 4px;
+      color: #77a0b2;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.17em;
+      text-transform: uppercase;
+    }
+
+    .page-title {
+      position: relative;
+      margin: 0;
+      color: #edfdff;
+      font-size: clamp(21px, 1.78vw, 31px);
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-align: center;
+      text-shadow: 0 0 23px rgba(55, 219, 242, 0.24);
+      white-space: nowrap;
+    }
+
+    .page-title::before,
+    .page-title::after {
+      position: absolute;
+      top: 50%;
+      width: 48px;
+      height: 1px;
+      content: "";
+      background: linear-gradient(90deg, transparent, rgba(55, 219, 242, 0.65));
+    }
+
+    .page-title::before {
+      right: calc(100% + 22px);
+    }
+
+    .page-title::after {
+      left: calc(100% + 22px);
+      transform: rotate(180deg);
+    }
+
+    .header-meta {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .engine-state {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #b3d6e1;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 4px rgba(44, 232, 165, 0.1), 0 0 11px var(--green);
+      animation: breathe 2.3s ease-in-out infinite;
+    }
+
+    .clock {
+      min-width: 154px;
+      text-align: right;
+    }
+
+    .clock-date {
+      color: #9bc1d1;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+    }
+
+    .clock-time {
+      margin-top: 2px;
+      color: #eaffff;
+      font-family: var(--mono);
+      font-size: 21px;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.05em;
+      text-shadow: 0 0 12px rgba(55, 219, 242, 0.3);
+    }
+
+    .nav-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      min-height: 52px;
+      border-bottom: 1px solid rgba(72, 182, 218, 0.1);
+    }
+
+    .main-tabs {
+      display: flex;
+      align-self: stretch;
+      gap: 2px;
+    }
+
+    .tab-button {
+      position: relative;
+      min-width: 104px;
+      padding: 0 19px;
+      border: 0;
+      background: transparent;
+      color: #88b2c4;
+      font-size: 14px;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: color 180ms ease, background 180ms ease;
+    }
+
+    .tab-button::after {
+      position: absolute;
+      right: 18px;
+      bottom: -1px;
+      left: 18px;
+      height: 2px;
+      content: "";
+      background: var(--cyan);
+      box-shadow: 0 0 12px rgba(55, 219, 242, 0.7);
+      opacity: 0;
+      transform: scaleX(0.35);
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    .tab-button:hover {
+      color: #b8e2ef;
+      background: rgba(55, 219, 242, 0.035);
+    }
+
+    .tab-button.active {
+      color: #e7fcff;
+      background: linear-gradient(180deg, transparent, rgba(55, 219, 242, 0.08));
+    }
+
+    .tab-button.active::after {
+      opacity: 1;
+      transform: scaleX(1);
+    }
+
+    .tab-button:focus-visible,
+    .scenario-button:focus-visible,
+    .icon-button:focus-visible,
+    .action-button:focus-visible,
+    .ghost-button:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 2px;
+    }
+
+    .scenario-switch {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .scenario-label {
+      color: #769eb0;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+
+    .scenario-buttons {
+      display: flex;
+      gap: 4px;
+      padding: 3px;
+      border: 1px solid rgba(72, 182, 218, 0.14);
+      border-radius: 4px;
+      background: rgba(3, 11, 19, 0.68);
+    }
+
+    .scenario-button {
+      min-height: 27px;
+      padding: 4px 10px;
+      border: 0;
+      border-radius: 2px;
+      background: transparent;
+      color: #87aebf;
+      font-size: 11px;
+      cursor: pointer;
+      transition: background 160ms ease, color 160ms ease;
+      white-space: nowrap;
+    }
+
+    .scenario-button:hover {
+      color: #c6ecf5;
+      background: rgba(55, 219, 242, 0.08);
+    }
+
+    .scenario-button.active {
+      color: #e8fcff;
+      background: rgba(55, 219, 242, 0.16);
+      box-shadow: inset 0 0 0 1px rgba(55, 219, 242, 0.27);
+    }
+
+    .view {
+      display: none;
+      padding-top: 18px;
+      animation: viewIn 340ms ease both;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: minmax(244px, 0.82fr) minmax(500px, 2.15fr) minmax(288px, 0.95fr);
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .panel {
+      position: relative;
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(125deg, rgba(25, 66, 91, 0.55), transparent 26%),
+        var(--panel);
+      box-shadow: inset 0 1px 0 rgba(178, 238, 255, 0.055), 0 10px 28px rgba(0, 0, 0, 0.12);
+    }
+
+    .panel::before,
+    .panel::after {
+      position: absolute;
+      z-index: 2;
+      width: 17px;
+      height: 17px;
+      content: "";
+      pointer-events: none;
+    }
+
+    .panel::before {
+      top: -1px;
+      left: -1px;
+      border-top: 1px solid var(--line-strong);
+      border-left: 1px solid var(--line-strong);
+    }
+
+    .panel::after {
+      right: -1px;
+      bottom: -1px;
+      border-right: 1px solid var(--line-strong);
+      border-bottom: 1px solid var(--line-strong);
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-height: 42px;
+      padding: 0 14px;
+      border-bottom: 1px solid rgba(82, 190, 224, 0.17);
+      background: linear-gradient(90deg, rgba(35, 147, 184, 0.18), transparent);
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin: 0;
+      color: #e9fbff;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+
+    .panel-title::before {
+      width: 3px;
+      height: 13px;
+      content: "";
+      background: var(--cyan);
+      box-shadow: 0 0 9px rgba(55, 219, 242, 0.65);
+      transform: skewX(-18deg);
+    }
+
+    .panel-caption {
+      color: #7aa2b4;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .panel-body {
+      padding: 13px;
+    }
+
+    .metrics-panel {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .metrics-panel .panel-body {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .metric-card {
+      position: relative;
+      min-height: 76px;
+      padding: 10px 10px 9px;
+      overflow: hidden;
+      border: 1px solid rgba(72, 182, 218, 0.11);
+      background:
+        linear-gradient(145deg, rgba(31, 87, 112, 0.19), transparent 64%),
+        rgba(3, 13, 23, 0.55);
+    }
+
+    .metric-card::after {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 26px;
+      height: 1px;
+      content: "";
+      background: rgba(55, 219, 242, 0.62);
+    }
+
+    .metric-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 4px;
+      color: #9cc2d1;
+      font-size: 11px;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
+
+    .metric-state {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 7px rgba(44, 232, 165, 0.55);
+    }
+
+    .metric-state.warn {
+      background: var(--amber);
+      box-shadow: 0 0 7px rgba(255, 189, 72, 0.65);
+    }
+
+    .metric-state.danger {
+      background: var(--red);
+      box-shadow: 0 0 8px rgba(255, 86, 103, 0.75);
+    }
+
+    .metric-value {
+      margin-top: 8px;
+      color: #ffffff;
+      font-family: var(--mono);
+      font-size: clamp(18px, 1.25vw, 24px);
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      letter-spacing: -0.04em;
+      text-shadow: 0 0 12px rgba(55, 219, 242, 0.12);
+    }
+
+    .metric-unit {
+      margin-left: 4px;
+      color: var(--faint);
+      font-family: var(--font);
+      font-size: 10px;
+      letter-spacing: 0;
+    }
+
+    .metric-hint {
+      margin-top: 6px;
+      color: #6e96a8;
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .ratio-block {
+      margin-top: 10px;
+      padding: 12px 11px 10px;
+      border: 1px solid rgba(72, 182, 218, 0.12);
+      background: rgba(2, 11, 20, 0.5);
+    }
+
+    .ratio-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #a8ccda;
+      font-size: 11px;
+    }
+
+    .ratio-live {
+      color: #7cecff;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.06em;
+    }
+
+    .ratio-gauge {
+      --gauge-value: 37;
+      position: relative;
+      display: grid;
+      width: 126px;
+      height: 72px;
+      margin: 12px auto 4px;
+      place-items: end center;
+      overflow: hidden;
+    }
+
+    .ratio-gauge::before {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 126px;
+      height: 126px;
+      content: "";
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 50% 50%, var(--panel-solid) 0 46%, transparent 47%),
+        conic-gradient(from 270deg, var(--green) 0 24%, var(--amber) 32% 48%, var(--red) 56% 100%, transparent 100%);
+      transform: translateX(-50%);
+      clip-path: polygon(0 0, 100% 0, 100% 50%, 0 50%);
+      opacity: 0.9;
+    }
+
+    .ratio-gauge::after {
+      position: absolute;
+      top: 4px;
+      left: 50%;
+      width: 110px;
+      height: 110px;
+      content: "";
+      border-radius: 50%;
+      background: var(--panel-solid);
+      transform: translateX(-50%);
+      clip-path: polygon(0 0, 100% 0, 100% 50%, 0 50%);
+    }
+
+    .ratio-needle {
+      --needle-angle: -72deg;
+      position: absolute;
+      z-index: 2;
+      bottom: 8px;
+      left: calc(50% - 1px);
+      width: 2px;
+      height: 48px;
+      border-radius: 2px;
+      background: linear-gradient(to top, var(--cyan), #eaffff);
+      box-shadow: 0 0 8px var(--cyan);
+      transform: rotate(var(--needle-angle));
+      transform-origin: 50% 100%;
+      transition: transform 650ms cubic-bezier(0.2, 0.75, 0.2, 1);
+    }
+
+    .ratio-pivot {
+      position: relative;
+      z-index: 3;
+      width: 8px;
+      height: 8px;
+      margin-bottom: 4px;
+      border-radius: 50%;
+      background: #dffcff;
+      box-shadow: 0 0 10px var(--cyan);
+    }
+
+    .ratio-value {
+      position: relative;
+      z-index: 3;
+      margin-top: -54px;
+      color: #f0fcff;
+      font-family: var(--mono);
+      font-size: 28px;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.06em;
+      text-align: center;
+    }
+
+    .ratio-value small {
+      display: block;
+      margin-top: 3px;
+      color: var(--faint);
+      font-family: var(--font);
+      font-size: 8px;
+      letter-spacing: 0.04em;
+    }
+
+    .gauge-legend {
+      display: flex;
+      justify-content: space-between;
+      gap: 5px;
+      color: #789fb1;
+      font-size: 9px;
+    }
+
+    .thresholds {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+      margin-top: 10px;
+    }
+
+    .threshold-item {
+      padding: 6px 5px;
+      border: 1px solid rgba(72, 182, 218, 0.09);
+      background: rgba(5, 17, 28, 0.55);
+      text-align: center;
+    }
+
+    .threshold-item strong {
+      display: block;
+      color: #c4e2ec;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .threshold-item span {
+      display: block;
+      margin-top: 3px;
+      color: #7196a8;
+      font-size: 9px;
+    }
+
+    .data-source {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: auto;
+      padding-top: 12px;
+      color: #759cae;
+      font-size: 10px;
+    }
+
+    .data-source::before {
+      width: 11px;
+      height: 11px;
+      content: "";
+      border: 1px solid #3d8aa5;
+      border-radius: 50%;
+      box-shadow: inset 0 0 0 2px var(--panel-solid);
+      background: var(--cyan);
+    }
+
+    .process-panel {
+      display: flex;
+      flex-direction: column;
+      min-height: 650px;
+      background:
+        linear-gradient(180deg, rgba(13, 45, 69, 0.9), rgba(5, 21, 34, 0.97)),
+        var(--panel);
+    }
+
+    .process-head {
+      position: relative;
+      z-index: 3;
+    }
+
+    .live-pill {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: #8bb7c8;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+    }
+
+    .plant-stage {
+      position: relative;
+      flex: 1;
+      min-height: 500px;
+      overflow: hidden;
+      background:
+        radial-gradient(ellipse at 58% 42%, rgba(55, 165, 197, 0.23), transparent 43%),
+        linear-gradient(180deg, #102d42 0%, #0a1f2f 53%, #041019 100%);
+    }
+
+    .plant-stage::before {
+      position: absolute;
+      inset: 0;
+      content: "";
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(77, 175, 205, 0.055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(77, 175, 205, 0.055) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: linear-gradient(to bottom, transparent, black 20%, rgba(0, 0, 0, 0.55) 67%, transparent);
+      transform: perspective(390px) rotateX(61deg) scale(1.38) translateY(10%);
+      transform-origin: 50% 65%;
+    }
+
+    .plant-stage::after {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      height: 36%;
+      content: "";
+      pointer-events: none;
+      background: linear-gradient(to top, rgba(1, 7, 12, 0.72), transparent);
+    }
+
+    .stage-topline {
+      position: absolute;
+      z-index: 2;
+      top: 13px;
+      right: 14px;
+      left: 14px;
+      display: flex;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+
+    .coordinate {
+      color: rgba(112, 171, 194, 0.46);
+      font-family: var(--mono);
+      font-size: 8px;
+      letter-spacing: 0.1em;
+    }
+
+    .plant-svg {
+      position: absolute;
+      z-index: 1;
+      inset: 22px 0 0;
+      width: 100%;
+      height: calc(100% - 22px);
+      filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.3));
+    }
+
+    .flow-path {
+      fill: none;
+      stroke: #58eaff;
+      stroke-width: 2.2;
+      stroke-dasharray: 6 11;
+      opacity: 0.9;
+      animation: flow 1.5s linear infinite;
+    }
+
+    .pipe-base {
+      fill: none;
+      stroke: #467b90;
+      stroke-width: 4;
+      opacity: 0.95;
+    }
+
+    .pipe-core {
+      fill: none;
+      stroke: rgba(84, 234, 252, 0.88);
+      stroke-width: 1.1;
+    }
+
+    .tank-body {
+      stroke: rgba(141, 224, 239, 0.88);
+      stroke-width: 1.35;
+    }
+
+    .tank-sheen {
+      fill: rgba(202, 247, 255, 0.09);
+    }
+
+    .tank-ring {
+      fill: none;
+      stroke: rgba(190, 242, 250, 0.5);
+      stroke-width: 0.9;
+    }
+
+    .liquid-wave {
+      fill: var(--state);
+      opacity: 0.7;
+    }
+
+    .liquid-card {
+      fill: var(--state-soft);
+      stroke: var(--state);
+      stroke-width: 0.7;
+      opacity: 0.82;
+    }
+
+    .sensor-ring {
+      fill: var(--panel-solid);
+      stroke: var(--state);
+      stroke-width: 1;
+    }
+
+    .sensor-core {
+      fill: var(--state);
+      filter: drop-shadow(0 0 4px var(--state));
+    }
+
+    .sensor-pulse {
+      fill: none;
+      stroke: var(--state);
+      stroke-width: 1;
+      opacity: 0;
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: sensorPulse 2.4s ease-out infinite;
+    }
+
+    .plant-label {
+      fill: #ddf8ff;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+    }
+
+    .plant-label-small {
+      fill: #91b8c8;
+      font-size: 8.5px;
+      letter-spacing: 0.03em;
+    }
+
+    .plant-value {
+      fill: #ffffff;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 500;
+    }
+
+    .process-footer {
+      position: relative;
+      z-index: 3;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      margin: 0 12px 12px;
+      border: 1px solid rgba(72, 182, 218, 0.14);
+      background: rgba(72, 182, 218, 0.12);
+    }
+
+    .process-stat {
+      min-width: 0;
+      padding: 9px 10px;
+      background: rgba(4, 16, 27, 0.94);
+    }
+
+    .process-stat span {
+      display: block;
+      overflow: hidden;
+      color: #82a9ba;
+      font-size: 9.5px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .process-stat strong {
+      display: block;
+      margin-top: 4px;
+      color: #dff8ff;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .control-column {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .state-panel {
+      position: relative;
+      flex: 0 0 auto;
+      padding: 14px;
+      border-color: rgba(var(--state-rgb), 0.35);
+      background:
+        radial-gradient(circle at 100% 0%, var(--state-soft), transparent 44%),
+        linear-gradient(125deg, rgba(14, 42, 61, 0.62), transparent 45%),
+        var(--panel);
+    }
+
+    .state-panel::before {
+      border-color: var(--state);
+    }
+
+    .state-kicker {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--state);
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+
+    .state-kicker::before {
+      width: 5px;
+      height: 5px;
+      content: "";
+      border-radius: 50%;
+      background: var(--state);
+      box-shadow: 0 0 9px var(--state);
+      animation: breathe 1.8s ease-in-out infinite;
+    }
+
+    .state-name {
+      margin: 10px 0 5px;
+      color: #f4feff;
+      font-size: clamp(21px, 1.45vw, 27px);
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+
+    .state-description {
+      margin: 0;
+      color: #a5c6d4;
+      font-size: 11.5px;
+      line-height: 1.7;
+    }
+
+    .trigger-list {
+      display: grid;
+      gap: 6px;
+      margin: 12px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .trigger-list li {
+      display: grid;
+      grid-template-columns: 4px 1fr;
+      gap: 8px;
+      align-items: start;
+      color: #99becc;
+      font-size: 10.5px;
+      line-height: 1.45;
+    }
+
+    .trigger-list li::before {
+      width: 4px;
+      height: 4px;
+      margin-top: 4px;
+      content: "";
+      background: var(--state);
+      box-shadow: 0 0 7px var(--state-glow);
+    }
+
+    .action-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .action-panel .panel-body {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+    }
+
+    .action-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .action-item {
+      display: grid;
+      grid-template-columns: 22px 1fr auto;
+      gap: 8px;
+      align-items: center;
+      min-height: 38px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(72, 182, 218, 0.09);
+    }
+
+    .action-item:last-child {
+      border-bottom: 0;
+    }
+
+    .action-index {
+      display: grid;
+      width: 21px;
+      height: 21px;
+      place-items: center;
+      border: 1px solid rgba(var(--state-rgb), 0.4);
+      color: var(--state);
+      font-family: var(--mono);
+      font-size: 8px;
+    }
+
+    .action-copy strong {
+      display: block;
+      color: #ddf4fa;
+      font-size: 11.5px;
+      font-weight: 500;
+    }
+
+    .action-copy span {
+      display: block;
+      margin-top: 2px;
+      color: #7da4b5;
+      font-size: 9.5px;
+    }
+
+    .action-value {
+      color: var(--state);
+      font-family: var(--mono);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .dose-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 9px;
+      padding: 9px 10px;
+      border: 1px solid rgba(var(--state-rgb), 0.18);
+      background: rgba(var(--state-rgb), 0.055);
+    }
+
+    .dose-label {
+      color: #84a8b9;
+      font-size: 9.5px;
+      line-height: 1.45;
+    }
+
+    .dose-value {
+      color: var(--state);
+      font-family: var(--mono);
+      font-size: 17px;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .action-footer {
+      display: flex;
+      gap: 7px;
+      margin-top: auto;
+      padding-top: 10px;
+    }
+
+    .action-button,
+    .ghost-button {
+      min-height: 34px;
+      padding: 0 12px;
+      border-radius: 2px;
+      font-size: 10px;
+      cursor: pointer;
+      transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+    }
+
+    .action-button {
+      flex: 1;
+      border: 1px solid rgba(var(--state-rgb), 0.56);
+      background: linear-gradient(90deg, rgba(var(--state-rgb), 0.2), rgba(var(--state-rgb), 0.09));
+      color: #f4fcff;
+      box-shadow: inset 0 0 18px rgba(var(--state-rgb), 0.05);
+    }
+
+    .action-button:hover {
+      background: linear-gradient(90deg, rgba(var(--state-rgb), 0.29), rgba(var(--state-rgb), 0.14));
+      transform: translateY(-1px);
+    }
+
+    .ghost-button {
+      border: 1px solid rgba(72, 182, 218, 0.18);
+      background: rgba(4, 15, 26, 0.46);
+      color: #84aabb;
+    }
+
+    .ghost-button:hover {
+      border-color: rgba(72, 182, 218, 0.42);
+      color: #ceeff7;
+      transform: translateY(-1px);
+    }
+
+    .forecast-panel {
+      flex: 0 0 194px;
+    }
+
+    .forecast-panel .panel-body {
+      padding: 8px 11px 10px;
+    }
+
+    .forecast-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: #7ea5b6;
+      font-size: 9px;
+    }
+
+    .forecast-meta strong {
+      color: var(--state);
+      font-weight: 500;
+    }
+
+    .forecast-chart {
+      display: block;
+      width: 100%;
+      height: 110px;
+      margin-top: 3px;
+    }
+
+    .chart-grid {
+      stroke: rgba(89, 155, 179, 0.13);
+      stroke-width: 0.7;
+    }
+
+    .chart-target {
+      stroke: rgba(87, 173, 199, 0.4);
+      stroke-width: 0.8;
+      stroke-dasharray: 4 4;
+    }
+
+    .chart-area {
+      fill: url("#forecastFill");
+    }
+
+    .chart-line {
+      fill: none;
+      stroke: var(--state);
+      stroke-width: 1.6;
+      filter: drop-shadow(0 0 4px var(--state-glow));
+    }
+
+    .chart-dot {
+      fill: var(--panel-solid);
+      stroke: var(--state);
+      stroke-width: 1.4;
+    }
+
+    .chart-axis {
+      fill: #789cac;
+      font-family: var(--mono);
+      font-size: 8px;
+    }
+
+    .view-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 20px;
+      margin: 4px 0 15px;
+    }
+
+    .view-heading h2 {
+      margin: 0;
+      color: #e5fbff;
+      font-size: 19px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+
+    .view-heading p {
+      margin: 5px 0 0;
+      color: #82a8b9;
+      font-size: 11px;
+    }
+
+    .heading-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #79a0b2;
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    .monitor-grid {
+      display: grid;
+      grid-template-columns: minmax(420px, 1.2fr) minmax(380px, 1fr);
+      gap: 14px;
+    }
+
+    .sensor-wall {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .sensor-tile {
+      position: relative;
+      min-height: 126px;
+      padding: 11px;
+      overflow: hidden;
+      border: 1px solid rgba(72, 182, 218, 0.13);
+      background: rgba(4, 16, 27, 0.58);
+    }
+
+    .sensor-tile::before {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 35%;
+      height: 100%;
+      content: "";
+      background: linear-gradient(120deg, transparent, rgba(55, 219, 242, 0.025));
+    }
+
+    .sensor-name {
+      color: #9fc3d1;
+      font-size: 10.5px;
+    }
+
+    .sensor-reading {
+      margin-top: 8px;
+      color: #e7fbff;
+      font-family: var(--mono);
+      font-size: 23px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .sensor-reading small {
+      margin-left: 4px;
+      color: #7ea5b7;
+      font-family: var(--font);
+      font-size: 9px;
+    }
+
+    .sensor-spark {
+      position: absolute;
+      right: 8px;
+      bottom: 7px;
+      left: 8px;
+      width: calc(100% - 16px);
+      height: 38px;
+    }
+
+    .sensor-spark polyline {
+      fill: none;
+      stroke: var(--cyan);
+      stroke-width: 1.2;
+      opacity: 0.8;
+    }
+
+    .sensor-tile.warn {
+      border-color: rgba(255, 189, 72, 0.3);
+      background: linear-gradient(145deg, rgba(255, 189, 72, 0.055), rgba(4, 16, 27, 0.65));
+    }
+
+    .sensor-tile.danger {
+      border-color: rgba(255, 86, 103, 0.35);
+      background: linear-gradient(145deg, rgba(255, 86, 103, 0.065), rgba(4, 16, 27, 0.65));
+    }
+
+    .monitor-chart-panel {
+      min-height: 292px;
+    }
+
+    .wide-chart {
+      width: 100%;
+      height: 228px;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 13px;
+      color: #90b5c5;
+      font-size: 10px;
+    }
+
+    .legend span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend i {
+      width: 14px;
+      height: 2px;
+      background: var(--cyan);
+    }
+
+    .legend span:nth-child(2) i {
+      background: var(--amber);
+    }
+
+    .legend span:nth-child(3) i {
+      background: var(--red);
+    }
+
+    .event-list {
+      display: grid;
+      gap: 0;
+    }
+
+    .event-row {
+      display: grid;
+      grid-template-columns: 58px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      min-height: 48px;
+      border-bottom: 1px solid rgba(72, 182, 218, 0.09);
+    }
+
+    .event-row:last-child {
+      border-bottom: 0;
+    }
+
+    .event-time {
+      color: #78a1b2;
+      font-family: var(--mono);
+      font-size: 9px;
+    }
+
+    .event-copy {
+      color: #bedde7;
+      font-size: 11px;
+    }
+
+    .event-level {
+      padding: 3px 6px;
+      border: 1px solid rgba(55, 219, 242, 0.2);
+      color: #79ecff;
+      font-size: 9px;
+      white-space: nowrap;
+    }
+
+    .event-level.warn {
+      border-color: rgba(255, 189, 72, 0.25);
+      color: var(--amber);
+    }
+
+    .event-level.danger {
+      border-color: rgba(255, 86, 103, 0.28);
+      color: var(--red);
+    }
+
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: minmax(520px, 1.45fr) minmax(340px, 0.8fr);
+      gap: 14px;
+    }
+
+    .stage-flow {
+      position: relative;
+      display: grid;
+      gap: 13px;
+      padding: 19px;
+    }
+
+    .stage-row {
+      position: relative;
+      display: grid;
+      grid-template-columns: 96px 1fr 116px;
+      gap: 14px;
+      align-items: center;
+      min-height: 112px;
+      padding: 14px;
+      border: 1px solid rgba(72, 182, 218, 0.11);
+      background: rgba(3, 13, 23, 0.5);
+      transition: border-color 200ms ease, background 200ms ease;
+    }
+
+    .stage-row::after {
+      position: absolute;
+      bottom: -14px;
+      left: 61px;
+      width: 1px;
+      height: 14px;
+      content: "";
+      background: rgba(70, 153, 183, 0.32);
+    }
+
+    .stage-row:last-child::after {
+      display: none;
+    }
+
+    .stage-row.active {
+      border-color: rgba(var(--state-rgb), 0.45);
+      background:
+        linear-gradient(90deg, rgba(var(--state-rgb), 0.09), transparent 55%),
+        rgba(3, 13, 23, 0.66);
+    }
+
+    .stage-number {
+      color: #719bae;
+      font-family: var(--mono);
+      font-size: 23px;
+      font-weight: 500;
+    }
+
+    .stage-number span {
+      display: block;
+      margin-top: 4px;
+      color: #466c7e;
+      font-family: var(--font);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+    }
+
+    .stage-row.active .stage-number {
+      color: var(--state);
+      text-shadow: 0 0 12px var(--state-glow);
+    }
+
+    .stage-copy h3 {
+      margin: 0;
+      color: #e3f7fb;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .stage-copy p {
+      margin: 6px 0 0;
+      color: #88adbd;
+      font-size: 10.5px;
+      line-height: 1.65;
+    }
+
+    .stage-tag {
+      justify-self: end;
+      padding: 5px 8px;
+      border: 1px solid rgba(72, 182, 218, 0.16);
+      color: #8eafbd;
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .stage-row.active .stage-tag {
+      border-color: rgba(var(--state-rgb), 0.38);
+      color: var(--state);
+    }
+
+    .cause-chain {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 7px;
+      padding: 10px 12px;
+      border: 1px solid rgba(72, 182, 218, 0.12);
+      background: rgba(4, 16, 27, 0.56);
+      color: #a5c3cf;
+      font-size: 10px;
+    }
+
+    .cause-chain b {
+      color: var(--state);
+      font-weight: 500;
+    }
+
+    .cause-chain i {
+      color: #42697c;
+      font-style: normal;
+    }
+
+    .reason-card {
+      padding: 13px;
+    }
+
+    .reason-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 11px;
+      border-bottom: 1px solid rgba(72, 182, 218, 0.1);
+    }
+
+    .reason-header span {
+      color: #80a6b7;
+      font-size: 10px;
+    }
+
+    .reason-header strong {
+      color: var(--state);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .reason-list {
+      display: grid;
+      gap: 11px;
+      margin: 13px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .reason-list li {
+      display: grid;
+      grid-template-columns: 5px 1fr auto;
+      gap: 8px;
+      align-items: center;
+      color: #9abcc9;
+      font-size: 10px;
+    }
+
+    .reason-list li::before {
+      width: 4px;
+      height: 4px;
+      content: "";
+      background: var(--state);
+    }
+
+    .reason-list em {
+      color: #cdebf4;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-style: normal;
+      white-space: nowrap;
+    }
+
+    .model-card {
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px solid rgba(72, 182, 218, 0.12);
+      background: rgba(3, 13, 23, 0.48);
+    }
+
+    .model-label {
+      color: #7ca2b4;
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .model-formula {
+      margin-top: 8px;
+      color: #c8edf6;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .model-formula span {
+      color: var(--state);
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: minmax(430px, 1fr) minmax(420px, 1.15fr);
+      gap: 14px;
+    }
+
+    .control-builder {
+      padding: 16px;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .field-item label {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: #96bac8;
+      font-size: 10.5px;
+    }
+
+    .field-item label span {
+      color: #d9f4fb;
+      font-family: var(--mono);
+    }
+
+    .field-item input[type="range"] {
+      width: 100%;
+      height: 2px;
+      margin: 12px 0 5px;
+      border: 0;
+      accent-color: var(--cyan);
+      background: #173849;
+      cursor: pointer;
+      appearance: none;
+    }
+
+    .field-item input[type="range"]::-webkit-slider-thumb {
+      width: 11px;
+      height: 11px;
+      border: 2px solid #dffcff;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 8px rgba(55, 219, 242, 0.75);
+      appearance: none;
+    }
+
+    .field-range {
+      display: flex;
+      justify-content: space-between;
+      color: #6e95a7;
+      font-family: var(--mono);
+      font-size: 8px;
+    }
+
+    .calculator-result {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 17px;
+      padding: 12px;
+      border: 1px solid rgba(var(--state-rgb), 0.26);
+      background: rgba(var(--state-rgb), 0.065);
+    }
+
+    .calculator-result span {
+      color: #91b4c3;
+      font-size: 10px;
+    }
+
+    .calculator-result strong {
+      color: var(--state);
+      font-size: 18px;
+      font-weight: 500;
+    }
+
+    .reset-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 13px;
+    }
+
+    .timeline {
+      position: relative;
+      display: grid;
+      gap: 0;
+      padding: 13px 16px 14px;
+    }
+
+    .timeline::before {
+      position: absolute;
+      top: 31px;
+      bottom: 28px;
+      left: 30px;
+      width: 1px;
+      content: "";
+      background: linear-gradient(var(--state), rgba(72, 182, 218, 0.12));
+    }
+
+    .timeline-item {
+      position: relative;
+      display: grid;
+      grid-template-columns: 30px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      min-height: 62px;
+    }
+
+    .timeline-dot {
+      z-index: 1;
+      display: grid;
+      width: 13px;
+      height: 13px;
+      margin-left: 6px;
+      place-items: center;
+      border: 1px solid var(--state);
+      border-radius: 50%;
+      background: var(--panel-solid);
+    }
+
+    .timeline-dot::after {
+      width: 5px;
+      height: 5px;
+      content: "";
+      border-radius: 50%;
+      background: var(--state);
+      box-shadow: 0 0 7px var(--state);
+    }
+
+    .timeline-copy strong {
+      display: block;
+      color: #ddf4fa;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .timeline-copy span {
+      display: block;
+      margin-top: 3px;
+      color: #7ca3b4;
+      font-size: 9px;
+    }
+
+    .timeline-time {
+      color: var(--state);
+      font-family: var(--mono);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .execution-note {
+      margin-top: 12px;
+      padding: 11px;
+      border: 1px solid rgba(255, 189, 72, 0.17);
+      background: rgba(255, 189, 72, 0.045);
+      color: #a2b9c2;
+      font-size: 10px;
+      line-height: 1.65;
+    }
+
+    .execution-note b {
+      color: var(--amber);
+      font-weight: 500;
+    }
+
+    .toast {
+      position: fixed;
+      z-index: 100;
+      right: 24px;
+      bottom: 24px;
+      max-width: min(360px, calc(100vw - 32px));
+      padding: 12px 16px;
+      border: 1px solid rgba(55, 219, 242, 0.32);
+      border-left: 3px solid var(--cyan);
+      background: rgba(5, 20, 33, 0.96);
+      box-shadow: 0 15px 38px rgba(0, 0, 0, 0.4);
+      color: #c9edf6;
+      font-size: 10px;
+      line-height: 1.55;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(12px);
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    dialog {
+      width: min(480px, calc(100vw - 32px));
+      padding: 0;
+      border: 1px solid rgba(55, 219, 242, 0.35);
+      border-radius: 4px;
+      background: #061522;
+      color: var(--text);
+      box-shadow: 0 28px 80px rgba(0, 0, 0, 0.62);
+    }
+
+    dialog::backdrop {
+      background: rgba(0, 5, 10, 0.72);
+      backdrop-filter: blur(4px);
+    }
+
+    .dialog-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 17px;
+      border-bottom: 1px solid rgba(72, 182, 218, 0.13);
+    }
+
+    .dialog-head h3 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .icon-button {
+      display: grid;
+      width: 30px;
+      height: 30px;
+      place-items: center;
+      border: 0;
+      background: transparent;
+      color: #779fb1;
+      font-size: 19px;
+      cursor: pointer;
+    }
+
+    .dialog-body {
+      padding: 17px;
+    }
+
+    .dialog-summary {
+      padding: 12px;
+      border: 1px solid rgba(var(--state-rgb), 0.28);
+      background: rgba(var(--state-rgb), 0.06);
+      color: #99bdca;
+      font-size: 10px;
+      line-height: 1.75;
+    }
+
+    .dialog-summary strong {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--state);
+      font-size: 14px;
+    }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 0 17px 17px;
+    }
+
+    @keyframes flow {
+      to {
+        stroke-dashoffset: -34;
+      }
+    }
+
+    @keyframes breathe {
+      0%,
+      100% {
+        opacity: 0.75;
+      }
+      50% {
+        opacity: 1;
+      }
+    }
+
+    @keyframes sensorPulse {
+      0% {
+        opacity: 0.6;
+        transform: scale(0.65);
+      }
+      80%,
+      100% {
+        opacity: 0;
+        transform: scale(1.9);
+      }
+    }
+
+    @keyframes viewIn {
+      from {
+        opacity: 0;
+        transform: translateY(5px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 1280px) {
+      .app {
+        padding-right: 15px;
+        padding-left: 15px;
+      }
+
+      .topbar {
+        grid-template-columns: 1fr auto 1fr;
+      }
+
+      .brand-subtitle {
+        display: none;
+      }
+
+      .dashboard-grid {
+        grid-template-columns: 238px minmax(420px, 1fr) 276px;
+        gap: 10px;
+      }
+
+      .metric-card {
+        padding-right: 8px;
+        padding-left: 8px;
+      }
+
+      .process-panel {
+        min-height: 610px;
+      }
+
+      .plant-stage {
+        min-height: 460px;
+      }
+    }
+
+    @media (max-width: 1080px) {
+      .topbar {
+        grid-template-columns: 1fr auto;
+        min-height: 68px;
+      }
+
+      .page-title {
+        position: absolute;
+        left: 50%;
+        font-size: 18px;
+        transform: translateX(-50%);
+      }
+
+      .page-title::before,
+      .page-title::after {
+        display: none;
+      }
+
+      .header-meta {
+        display: none;
+      }
+
+      .nav-row {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 7px;
+        padding: 7px 0;
+      }
+
+      .main-tabs {
+        justify-content: center;
+      }
+
+      .scenario-switch {
+        justify-content: center;
+      }
+
+      .dashboard-grid {
+        grid-template-columns: 250px minmax(0, 1fr);
+      }
+
+      .control-column {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: 0.85fr 1.15fr 0.9fr;
+      }
+
+      .forecast-panel {
+        min-height: 100%;
+      }
+
+      .analysis-grid,
+      .control-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .monitor-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .app {
+        padding: 0 10px 16px;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: center;
+        min-height: 64px;
+      }
+
+      .brand {
+        display: none;
+      }
+
+      .page-title {
+        position: static;
+        font-size: 17px;
+        letter-spacing: 0.03em;
+        transform: none;
+        white-space: normal;
+      }
+
+      .main-tabs {
+        justify-content: flex-start;
+        overflow-x: auto;
+      }
+
+      .tab-button {
+        flex: 1 0 86px;
+        min-width: 86px;
+        padding: 0 10px;
+        font-size: 11px;
+      }
+
+      .scenario-switch {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .scenario-buttons {
+        width: 100%;
+        overflow-x: auto;
+      }
+
+      .scenario-button {
+        flex: 1;
+      }
+
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .process-panel {
+        order: 1;
+        min-height: 510px;
+      }
+
+      .metrics-panel {
+        order: 2;
+      }
+
+      .control-column {
+        order: 3;
+        display: flex;
+      }
+
+      .plant-stage {
+        min-height: 400px;
+      }
+
+      .process-footer {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .sensor-wall {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .monitor-grid,
+      .analysis-grid,
+      .control-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .stage-row {
+        grid-template-columns: 66px 1fr;
+      }
+
+      .stage-tag {
+        display: none;
+      }
+
+      .view-heading {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .heading-meta {
+        flex-wrap: wrap;
+      }
+
+      .field-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .event-row {
+        grid-template-columns: 50px 1fr;
+      }
+
+      .event-level {
+        display: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div>
+          <p class="brand-title">碳氮协同调控平台</p>
+          <div class="brand-subtitle">Anaerobic Intelligence OS</div>
+        </div>
+      </div>
+      <h1 class="page-title">厌氧发酵酸积累智能调控系统</h1>
+      <div class="header-meta">
+        <div class="engine-state"><span class="live-dot"></span>调控引擎在线</div>
+        <div class="clock" aria-label="当前时间">
+          <div class="clock-date" id="clockDate">2026-11-10 · 星期二</div>
+          <div class="clock-time" id="clockTime">--:--:--</div>
+        </div>
+      </div>
+    </header>
+
+    <div class="nav-row">
+      <nav class="main-tabs" aria-label="系统功能">
+        <button class="tab-button active" type="button" data-view="overview" aria-selected="true">系统总览</button>
+        <button class="tab-button" type="button" data-view="monitor" aria-selected="false">实时监测</button>
+        <button class="tab-button" type="button" data-view="analysis" aria-selected="false">诊断分析</button>
+        <button class="tab-button" type="button" data-view="control" aria-selected="false">智能调控</button>
+      </nav>
+      <div class="scenario-switch">
+        <span class="scenario-label">运行场景</span>
+        <div class="scenario-buttons" role="group" aria-label="切换演示场景">
+          <button class="scenario-button" type="button" data-scenario="stable">稳定</button>
+          <button class="scenario-button" type="button" data-scenario="early">早期预警</button>
+          <button class="scenario-button active" type="button" data-scenario="imbalance">失衡</button>
+          <button class="scenario-button" type="button" data-scenario="redline">红线</button>
+        </div>
+      </div>
+    </div>
+
+    <main>
+      <section class="view active" id="view-overview" aria-label="系统总览">
+        <div class="dashboard-grid">
+          <aside class="panel metrics-panel">
+            <div class="panel-head">
+              <h2 class="panel-title">实时数据</h2>
+              <span class="panel-caption">LIVE / 5s</span>
+            </div>
+            <div class="panel-body">
+              <div class="metric-grid">
+                <div class="metric-card">
+                  <div class="metric-label"><span>pH</span><i class="metric-state" data-status="ph"></i></div>
+                  <div class="metric-value"><span data-value="ph">6.37</span><span class="metric-unit">pH</span></div>
+                  <div class="metric-hint">目标 6.8–7.4</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label"><span>VFA</span><i class="metric-state warn" data-status="vfa"></i></div>
+                  <div class="metric-value"><span data-value="vfa">7,600</span><span class="metric-unit">mg/L</span></div>
+                  <div class="metric-hint">挥发酸浓度</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label"><span>ALK</span><i class="metric-state" data-status="alk"></i></div>
+                  <div class="metric-value"><span data-value="alk">20,400</span><span class="metric-unit">mg/L</span></div>
+                  <div class="metric-hint">碳酸盐碱度</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label"><span>VFA/ALK</span><i class="metric-state danger" data-status="vfaalk"></i></div>
+                  <div class="metric-value"><span data-value="vfaalk">0.373</span><span class="metric-unit">—</span></div>
+                  <div class="metric-hint">失衡阈值 &gt; 0.25</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label"><span>CH₄</span><i class="metric-state warn" data-status="ch4"></i></div>
+                  <div class="metric-value"><span data-value="ch4">37.4</span><span class="metric-unit">%</span></div>
+                  <div class="metric-hint">相对下降 14.8%</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label"><span>CO₂</span><i class="metric-state" data-status="co2"></i></div>
+                  <div class="metric-value"><span data-value="co2">36.7</span><span class="metric-unit">%</span></div>
+                  <div class="metric-hint">气相组成</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label"><span>CH₄/CO₂</span><i class="metric-state danger" data-status="ch4co2"></i></div>
+                  <div class="metric-value"><span data-value="ch4co2">1.019</span><span class="metric-unit">—</span></div>
+                  <div class="metric-hint">正常 &gt; 1.06</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label"><span>产气量</span><i class="metric-state warn" data-status="gas"></i></div>
+                  <div class="metric-value"><span data-value="gas">184</span><span class="metric-unit">m³/d</span></div>
+                  <div class="metric-hint">日产气监测</div>
+                </div>
+              </div>
+
+              <div class="ratio-block">
+                <div class="ratio-heading"><span>酸积累风险指数</span><span class="ratio-live">CALCULATED</span></div>
+                <div class="ratio-gauge" id="ratioGauge">
+                  <div class="ratio-needle" id="ratioNeedle"></div>
+                  <div class="ratio-pivot"></div>
+                  <div class="ratio-value"><span data-value="risk">73</span><small>RISK INDEX / 100</small></div>
+                </div>
+                <div class="gauge-legend"><span>稳定</span><span>早期</span><span>红线</span></div>
+                <div class="thresholds">
+                  <div class="threshold-item"><strong>0.25</strong><span>失衡阈值</span></div>
+                  <div class="threshold-item"><strong>0.40</strong><span>红线阈值</span></div>
+                  <div class="threshold-item"><strong>3 d</strong><span>趋势窗口</span></div>
+                </div>
+              </div>
+              <div class="data-source">PLC / DCS / 在线传感 · 数据完整率 99.2%</div>
+            </div>
+          </aside>
+
+          <section class="panel process-panel" aria-label="厌氧发酵工艺实时视图">
+            <div class="panel-head process-head">
+              <h2 class="panel-title">厌氧发酵工艺链路</h2>
+              <span class="live-pill"><span class="live-dot"></span>PROCESS DIGITAL TWIN</span>
+            </div>
+            <div class="plant-stage">
+              <div class="stage-topline">
+                <span class="coordinate">N 31°14' · E 121°28'</span>
+                <span class="coordinate">FLOW MODEL / AUTO</span>
+              </div>
+              <svg class="plant-svg" viewBox="0 0 820 500" role="img" aria-labelledby="plantTitle plantDesc">
+                <title id="plantTitle">厌氧发酵酸积累智能调控工艺流程</title>
+                <desc id="plantDesc">进料依次经过水解酸化罐和厌氧消化罐，产生沼气并设置回流管线，在线传感器监测 pH、VFA 和甲烷比例。</desc>
+                <defs>
+                  <linearGradient id="groundFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#1e566b" stop-opacity=".82"/>
+                    <stop offset="1" stop-color="#09212f" stop-opacity=".32"/>
+                  </linearGradient>
+                  <linearGradient id="tankMetal" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0" stop-color="#113447"/>
+                    <stop offset=".18" stop-color="#4a8193"/>
+                    <stop offset=".39" stop-color="#28596c"/>
+                    <stop offset=".79" stop-color="#174253"/>
+                    <stop offset="1" stop-color="#0c2938"/>
+                  </linearGradient>
+                  <linearGradient id="tankMetal2" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0" stop-color="#123446"/>
+                    <stop offset=".2" stop-color="#518a9b"/>
+                    <stop offset=".46" stop-color="#2a5c6d"/>
+                    <stop offset=".83" stop-color="#184254"/>
+                    <stop offset="1" stop-color="#0c2a39"/>
+                  </linearGradient>
+                  <linearGradient id="liquidFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="var(--state)" stop-opacity=".92"/>
+                    <stop offset="1" stop-color="var(--state)" stop-opacity=".3"/>
+                  </linearGradient>
+                  <radialGradient id="glowFill">
+                    <stop offset="0" stop-color="var(--state)" stop-opacity=".36"/>
+                    <stop offset="1" stop-color="var(--state)" stop-opacity="0"/>
+                  </radialGradient>
+                  <pattern id="groundLines" width="26" height="18" patternUnits="userSpaceOnUse">
+                    <path d="M 0 18 L 26 0" stroke="#4a92aa" stroke-opacity=".08" stroke-width=".7"/>
+                  </pattern>
+                </defs>
+
+                <path d="M0 352 Q120 307 250 329 T480 316 T820 351 L820 490 L0 490 Z" fill="url(#groundFill)"/>
+                <path d="M0 372 Q130 338 272 353 T506 335 T820 376" fill="none" stroke="#3a849d" stroke-opacity=".23"/>
+                <path d="M0 425 H820" fill="none" stroke="#4a91a8" stroke-opacity=".12"/>
+                <rect x="0" y="356" width="820" height="130" fill="url(#groundLines)" opacity=".8"/>
+                <ellipse cx="435" cy="390" rx="370" ry="70" fill="url(#glowFill)" opacity=".18"/>
+
+                <path class="pipe-base" d="M54 361 H112 V321 H151"/>
+                <path class="pipe-core" d="M54 361 H112 V321 H151"/>
+                <path class="flow-path" d="M54 361 H112 V321 H151"/>
+                <path class="pipe-base" d="M301 344 H357"/>
+                <path class="pipe-core" d="M301 344 H357"/>
+                <path class="flow-path" d="M301 344 H357"/>
+                <path class="pipe-base" d="M525 346 H603 V331"/>
+                <path class="pipe-core" d="M525 346 H603 V331"/>
+                <path class="flow-path" d="M525 346 H603 V331"/>
+                <path class="pipe-base" d="M423 379 V441 H164 V363"/>
+                <path class="flow-path" d="M423 379 V441 H164 V363" opacity=".47"/>
+                <path d="M423 441 H164 V372" fill="none" stroke="var(--state)" stroke-opacity=".22" stroke-width="6"/>
+
+                <g aria-label="水解酸化罐">
+                  <ellipse cx="225" cy="365" rx="77" ry="15" fill="#04111a"/>
+                  <rect x="148" y="223" width="154" height="143" fill="url(#tankMetal)" stroke="#6db4c7" stroke-opacity=".55"/>
+                  <ellipse cx="225" cy="223" rx="77" ry="17" fill="#173c4c" stroke="#86c5d3" stroke-opacity=".6"/>
+                  <ellipse cx="225" cy="366" rx="77" ry="17" fill="#0b2634" stroke="#5d9bae" stroke-opacity=".45"/>
+                  <path d="M150 304 Q169 296 187 304 T225 304 T263 304 T300 304 V350 Q280 358 263 351 T225 351 T187 351 T150 350 Z" fill="url(#liquidFill)"/>
+                  <path d="M150 305 Q170 297 188 305 T225 305 T263 305 T300 305" fill="none" stroke="var(--state)" stroke-opacity=".8" stroke-width="1.1"/>
+                  <path d="M160 237 V350 M183 231 V358 M205 228 V360 M248 228 V360 M270 231 V358 M291 237 V350" stroke="#98d5df" stroke-opacity=".08"/>
+                  <rect x="190" y="205" width="70" height="18" rx="2" fill="#123746" stroke="#548ea1" stroke-opacity=".45"/>
+                  <path d="M225 176 V205 M209 176 H241" fill="none" stroke="#609bad" stroke-width="2"/>
+                  <rect x="150" y="265" width="154" height="2" fill="#c1eff4" opacity=".17"/>
+                  <rect x="150" y="330" width="154" height="3" fill="#52c5dd" opacity=".16"/>
+                  <path d="M166 223 V366" stroke="#d7f8ff" stroke-opacity=".1" stroke-width="5"/>
+                </g>
+
+                <g aria-label="厌氧消化罐">
+                  <ellipse cx="434" cy="369" rx="91" ry="18" fill="#03101a"/>
+                  <rect x="343" y="207" width="182" height="159" fill="url(#tankMetal2)" stroke="#76bdcb" stroke-opacity=".65"/>
+                  <ellipse cx="434" cy="207" rx="91" ry="20" fill="#184758" stroke="#9bdce5" stroke-opacity=".65"/>
+                  <ellipse cx="434" cy="369" rx="91" ry="19" fill="#0a2735" stroke="#66adbd" stroke-opacity=".5"/>
+                  <path d="M345 286 Q370 276 394 287 T434 287 T474 287 T523 287 V351 Q498 360 474 351 T434 351 T394 351 T345 351 Z" fill="url(#liquidFill)"/>
+                  <path d="M345 288 Q371 278 394 288 T434 288 T474 288 T523 288" fill="none" stroke="var(--state)" stroke-opacity=".88" stroke-width="1.2"/>
+                  <path d="M360 225 V353 M383 217 V360 M407 213 V363 M461 213 V363 M486 217 V360 M509 225 V353" stroke="#a5e0e8" stroke-opacity=".08"/>
+                  <rect x="407" y="192" width="54" height="15" rx="2" fill="#113646" stroke="#65a3b4" stroke-opacity=".45"/>
+                  <path d="M434 159 V192" fill="none" stroke="#6daabd" stroke-width="2"/>
+                  <path d="M343 265 H525 M343 336 H525" stroke="#b6eff5" stroke-opacity=".12"/>
+                  <path d="M363 207 V370" stroke="#effcff" stroke-opacity=".11" stroke-width="6"/>
+                  <circle cx="434" cy="265" r="23" fill="none" stroke="var(--state)" stroke-width="1" stroke-dasharray="4 5" opacity=".6"/>
+                  <circle cx="434" cy="265" r="4" fill="var(--state)" opacity=".8"/>
+                </g>
+
+                <g aria-label="沼气收集">
+                  <ellipse cx="653" cy="332" rx="62" ry="18" fill="#03101a"/>
+                  <path d="M603 300 A50 50 0 0 1 703 300 V331 H603 Z" fill="url(#tankMetal)" stroke="#65a9ba" stroke-opacity=".55"/>
+                  <ellipse cx="653" cy="300" rx="50" ry="14" fill="#133846" stroke="#83c4d1" stroke-opacity=".55"/>
+                  <path d="M612 300 A41 41 0 0 1 694 300" fill="none" stroke="var(--state)" stroke-opacity=".45" stroke-width="1.2" stroke-dasharray="4 5"/>
+                  <rect x="625" y="331" width="56" height="8" fill="#0d2a37" stroke="#5c96a8" stroke-opacity=".35"/>
+                  <text x="653" y="277" text-anchor="middle" class="plant-label">沼气收集</text>
+                  <text x="653" y="289" text-anchor="middle" class="plant-label-small">BIOGAS HOLDER</text>
+                </g>
+
+                <g aria-label="传感器 pH">
+                  <circle cx="194" cy="244" r="11" fill="url(#glowFill)"/>
+                  <circle class="sensor-pulse" cx="194" cy="244" r="9"/>
+                  <circle class="sensor-ring" cx="194" cy="244" r="5.5"/>
+                  <circle class="sensor-core" cx="194" cy="244" r="2"/>
+                  <rect x="73" y="211" width="101" height="31" class="liquid-card"/>
+                  <text x="82" y="223" class="plant-label">pH 传感器</text>
+                  <text x="82" y="234" class="plant-value"><tspan data-value="ph">6.37</tspan> / 目标 ≥ 6.5</text>
+                </g>
+
+                <g aria-label="传感器 VFA">
+                  <circle cx="403" cy="251" r="12" fill="url(#glowFill)"/>
+                  <circle class="sensor-pulse" cx="403" cy="251" r="10"/>
+                  <circle class="sensor-ring" cx="403" cy="251" r="5.5"/>
+                  <circle class="sensor-core" cx="403" cy="251" r="2"/>
+                  <rect x="302" y="410" width="143" height="32" class="liquid-card"/>
+                  <path d="M403 262 V410" stroke="#6cb3c5" stroke-opacity=".36" stroke-dasharray="2 4"/>
+                  <text x="312" y="422" class="plant-label">VFA / ALK 在线分析</text>
+                  <text x="312" y="434" class="plant-value"><tspan data-value="vfa">7,600</tspan> / <tspan data-value="alk">20,400</tspan> mg/L</text>
+                </g>
+
+                <g aria-label="传感器甲烷">
+                  <circle cx="653" cy="307" r="12" fill="url(#glowFill)"/>
+                  <circle class="sensor-pulse" cx="653" cy="307" r="10"/>
+                  <circle class="sensor-ring" cx="653" cy="307" r="5.5"/>
+                  <circle class="sensor-core" cx="653" cy="307" r="2"/>
+                  <rect x="663" y="347" width="113" height="32" class="liquid-card"/>
+                  <path d="M653 318 V347" stroke="#6cb3c5" stroke-opacity=".36" stroke-dasharray="2 4"/>
+                  <text x="672" y="359" class="plant-label">气相组成</text>
+                  <text x="672" y="371" class="plant-value">CH₄ <tspan data-value="ch4">37.4</tspan>%</text>
+                </g>
+
+                <g aria-label="流量标签">
+                  <rect x="55" y="295" width="90" height="28" fill="#071b28" stroke="#3e8098" stroke-opacity=".3"/>
+                  <text x="65" y="307" class="plant-label-small">进料流量</text>
+                  <text x="65" y="317" class="plant-value"><tspan data-value="feed">19</tspan> m³/h</text>
+                  <text x="200" y="401" text-anchor="middle" class="plant-label">水解酸化罐</text>
+                  <text x="200" y="414" text-anchor="middle" class="plant-label-small">HYDROLYSIS / ACIDOGENESIS</text>
+                  <text x="434" y="401" text-anchor="middle" class="plant-label">厌氧消化罐</text>
+                  <text x="434" y="414" text-anchor="middle" class="plant-label-small">METHANOGENESIS / CORE REACTOR</text>
+                  <path d="M180 441 H408" stroke="#4c8ea3" stroke-opacity=".35" stroke-dasharray="3 5"/>
+                  <text x="294" y="454" text-anchor="middle" class="plant-label-small">回流 / RECIRCULATION <tspan data-value="recirc">42</tspan> m³/h</text>
+                </g>
+              </svg>
+            </div>
+            <div class="process-footer">
+              <div class="process-stat"><span>有机负荷 OLR</span><strong><b data-value="olr">3.5</b> kgCOD/(m³·d)</strong></div>
+              <div class="process-stat"><span>水力停留 SRT</span><strong><b data-value="srt">18.4</b> d</strong></div>
+              <div class="process-stat"><span>自动阀门</span><strong>28 / 28 正常</strong></div>
+              <div class="process-stat"><span>边缘控制器</span><strong>ONLINE · 12 ms</strong></div>
+            </div>
+          </section>
+
+          <aside class="control-column">
+            <section class="panel state-panel">
+              <div class="state-kicker">AI REGULATION STATUS</div>
+              <h2 class="state-name" id="stateName">失衡补碱</h2>
+              <p class="state-description" id="stateDescription">复合指标已触发失衡层，建议立即降负荷并分次补碱。</p>
+              <ul class="trigger-list" id="triggerList"></ul>
+            </section>
+
+            <section class="panel action-panel">
+              <div class="panel-head">
+                <h2 class="panel-title">调控策略</h2>
+                <span class="panel-caption" id="strategyCode">LEVEL 02</span>
+              </div>
+              <div class="panel-body">
+                <div class="action-list" id="overviewActions"></div>
+                <div class="dose-card">
+                  <div class="dose-label">理论补碱量<br>NaHCO₃ · 分 2 次</div>
+                  <div class="dose-value" id="doseValue">16,800<br><span style="font-size:8px;color:#668b9c">mg/L</span></div>
+                </div>
+                <div class="action-footer">
+                  <button class="action-button" type="button" data-open-action>执行调控建议</button>
+                  <button class="ghost-button" type="button" data-jump-control>查看方案</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel forecast-panel">
+              <div class="panel-head">
+                <h2 class="panel-title">24h 趋势预测</h2>
+                <span class="panel-caption">MODEL 96.4%</span>
+              </div>
+              <div class="panel-body">
+                <div class="forecast-meta"><span>预测产气恢复率</span><strong id="recoveryLabel">+11.8%</strong></div>
+                <svg class="forecast-chart" id="forecastChart" viewBox="0 0 300 116" role="img" aria-labelledby="forecastTitle">
+                  <title id="forecastTitle">未来 24 小时产气量预测趋势</title>
+                  <defs>
+                    <linearGradient id="forecastFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0" stop-color="var(--state)" stop-opacity=".25"/>
+                      <stop offset="1" stop-color="var(--state)" stop-opacity="0"/>
+                    </linearGradient>
+                  </defs>
+                  <path class="chart-grid" d="M28 18H292M28 48H292M28 78H292M28 105H292"/>
+                  <path class="chart-target" d="M28 42H292"/>
+                  <path class="chart-area" id="forecastArea" d=""/>
+                  <path class="chart-line" id="forecastLine" d=""/>
+                  <circle class="chart-dot" id="forecastDot" cx="292" cy="30" r="3"/>
+                  <text class="chart-axis" x="2" y="21">110%</text>
+                  <text class="chart-axis" x="2" y="51">85%</text>
+                  <text class="chart-axis" x="2" y="81">60%</text>
+                  <text class="chart-axis" x="2" y="108">35%</text>
+                  <text class="chart-axis" x="28" y="115">0h</text>
+                  <text class="chart-axis" x="156" y="115">12h</text>
+                  <text class="chart-axis" x="281" y="115">24h</text>
+                </svg>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" id="view-monitor" aria-label="实时监测">
+        <div class="view-heading">
+          <div>
+            <h2>多源感知实时监测</h2>
+            <p>在线传感器、离线化验与 PLC/DCS 状态统一汇聚，沿趋势窗口识别酸积累风险。</p>
+          </div>
+          <div class="heading-meta"><span class="live-dot"></span>全部 28 个测点在线 · 更新于 <span id="lastUpdate">刚刚</span></div>
+        </div>
+        <div class="monitor-grid">
+          <section class="panel">
+            <div class="panel-head">
+              <h2 class="panel-title">实时指标矩阵</h2>
+              <span class="panel-caption">SENSOR MATRIX</span>
+            </div>
+            <div class="panel-body">
+              <div class="sensor-wall" id="sensorWall">
+                <div class="sensor-tile" data-sensor="ph">
+                  <div class="sensor-name">pH 在线</div>
+                  <div class="sensor-reading"><span data-value="ph">6.37</span><small>pH</small></div>
+                  <svg class="sensor-spark" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true"><polyline points=""/></svg>
+                </div>
+                <div class="sensor-tile warn" data-sensor="vfa">
+                  <div class="sensor-name">挥发酸 VFA</div>
+                  <div class="sensor-reading"><span data-value="vfa">7,600</span><small>mg/L</small></div>
+                  <svg class="sensor-spark" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true"><polyline points=""/></svg>
+                </div>
+                <div class="sensor-tile" data-sensor="alk">
+                  <div class="sensor-name">碱度 ALK</div>
+                  <div class="sensor-reading"><span data-value="alk">20,400</span><small>mg/L</small></div>
+                  <svg class="sensor-spark" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true"><polyline points=""/></svg>
+                </div>
+                <div class="sensor-tile danger" data-sensor="vfaalk">
+                  <div class="sensor-name">VFA / ALK</div>
+                  <div class="sensor-reading"><span data-value="vfaalk">0.373</span><small>—</small></div>
+                  <svg class="sensor-spark" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true"><polyline points=""/></svg>
+                </div>
+                <div class="sensor-tile warn" data-sensor="ch4">
+                  <div class="sensor-name">甲烷 CH₄</div>
+                  <div class="sensor-reading"><span data-value="ch4">37.4</span><small>%</small></div>
+                  <svg class="sensor-spark" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true"><polyline points=""/></svg>
+                </div>
+                <div class="sensor-tile" data-sensor="co2">
+                  <div class="sensor-name">二氧化碳 CO₂</div>
+                  <div class="sensor-reading"><span data-value="co2">36.7</span><small>%</small></div>
+                  <svg class="sensor-spark" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true"><polyline points=""/></svg>
+                </div>
+                <div class="sensor-tile danger" data-sensor="ch4co2">
+                  <div class="sensor-name">CH₄ / CO₂</div>
+                  <div class="sensor-reading"><span data-value="ch4co2">1.019</span><small>—</small></div>
+                  <svg class="sensor-spark" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true"><polyline points=""/></svg>
+                </div>
+                <div class="sensor-tile warn" data-sensor="gas">
+                  <div class="sensor-name">产气量</div>
+                  <div class="sensor-reading"><span data-value="gas">184</span><small>m³/d</small></div>
+                  <svg class="sensor-spark" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true"><polyline points=""/></svg>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section class="panel monitor-chart-panel">
+            <div class="panel-head">
+              <h2 class="panel-title">24 小时关键趋势</h2>
+              <div class="legend"><span><i></i>VFA/ALK</span><span><i></i>pH</span><span><i></i>产气</span></div>
+            </div>
+            <div class="panel-body">
+              <svg class="wide-chart" viewBox="0 0 420 228" role="img" aria-labelledby="trendChartTitle">
+                <title id="trendChartTitle">VFA 与碱度比值、pH 和产气量的二十四小时归一化趋势</title>
+                <path class="chart-grid" d="M36 24H404M36 70H404M36 116H404M36 162H404M36 204H404"/>
+                <path class="chart-grid" d="M36 24V204M128 24V204M220 24V204M312 24V204M404 24V204"/>
+                <path id="trendVfa" fill="none" stroke="#ffbd48" stroke-width="1.6" d=""/>
+                <path id="trendPh" fill="none" stroke="#37dbf2" stroke-width="1.6" d=""/>
+                <path id="trendGas" fill="none" stroke="#ff5667" stroke-width="1.2" stroke-dasharray="4 4" d=""/>
+                <text class="chart-axis" x="4" y="27">100</text>
+                <text class="chart-axis" x="4" y="73">75</text>
+                <text class="chart-axis" x="4" y="119">50</text>
+                <text class="chart-axis" x="4" y="165">25</text>
+                <text class="chart-axis" x="4" y="207">0</text>
+                <text class="chart-axis" x="36" y="220">00:00</text>
+                <text class="chart-axis" x="119" y="220">06:00</text>
+                <text class="chart-axis" x="211" y="220">12:00</text>
+                <text class="chart-axis" x="303" y="220">18:00</text>
+                <text class="chart-axis" x="380" y="220">NOW</text>
+              </svg>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h2 class="panel-title">最新事件</h2>
+              <span class="panel-caption">EVENT STREAM</span>
+            </div>
+            <div class="panel-body">
+              <div class="event-list" id="eventList"></div>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h2 class="panel-title">采样质量</h2>
+              <span class="panel-caption">DATA QUALITY</span>
+            </div>
+            <div class="panel-body">
+              <div class="reason-list" style="margin-top:0">
+                <li>在线传感器在线率 <em>100%</em></li>
+                <li>PLC / DCS 通讯延迟 <em>12 ms</em></li>
+                <li>近 24h 数据完整率 <em>99.2%</em></li>
+                <li>离线化验同步 <em>2 h 前</em></li>
+                <li>异常数据自动清洗 <em>已启用</em></li>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="view" id="view-analysis" aria-label="诊断分析">
+        <div class="view-heading">
+          <div>
+            <h2>酸积累分级诊断</h2>
+            <p>以 VFA/ALK 复合指标和趋势变化为核心，将复杂失稳过程划分为三个可执行层级。</p>
+          </div>
+          <div class="heading-meta">当前命中：<span id="analysisCurrent" style="color:var(--state)">失衡补碱</span> · 判定置信度 <span id="confidenceText">96.4%</span></div>
+        </div>
+        <div class="analysis-grid">
+          <section class="panel">
+            <div class="panel-head">
+              <h2 class="panel-title">分级判定链</h2>
+              <span class="panel-caption">RULE ENGINE</span>
+            </div>
+            <div class="stage-flow">
+              <div class="stage-row" data-stage-row="early">
+                <div class="stage-number">01<span>早期减负</span></div>
+                <div class="stage-copy">
+                  <h3>趋势触发 · 提前干预</h3>
+                  <p>VFA 连续 3 天较前一日增长 &gt; 30%，或 VFA/ALK 连续 3 天增长 &gt; 10%；或丙酸/乙酸 &gt; 2 且 CH₄/CO₂ &lt; 2。</p>
+                </div>
+                <div class="stage-tag">OR 复合触发</div>
+              </div>
+              <div class="stage-row" data-stage-row="imbalance">
+                <div class="stage-number">02<span>失衡补碱</span></div>
+                <div class="stage-copy">
+                  <h3>多指标共振 · 精准修复</h3>
+                  <p>CH₄/CO₂ &lt; 1.06、CH₄ 单日相对下降 &gt; 10%、VFA/ALK &gt; 0.25、单位进料产甲烷率下降 &gt; 15%，且 pH 连续 3 天 &lt; 6.5。</p>
+                </div>
+                <div class="stage-tag">AND 复合触发</div>
+              </div>
+              <div class="stage-row" data-stage-row="redline">
+                <div class="stage-number">03<span>红线预警</span></div>
+                <div class="stage-copy">
+                  <h3>不可逆损伤 · 应急止损</h3>
+                  <p>CH₄/CO₂ &lt; 1、CH₄ &lt; 40%、VFA/ALK &gt; 0.4、产甲烷率下降 &gt; 30%，且 pH &lt; 6.2；不设常规调控。</p>
+                </div>
+                <div class="stage-tag">STOP / REPLACE</div>
+              </div>
+              <div class="cause-chain">
+                <span>VFA 累积</span><i>→</i><span>VFA/ALK 上升</span><i>→</i><span>pH 下降</span><i>→</i><span>CH₄/CO₂ 下降</span><i>→</i><b>复合预警</b>
+              </div>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h2 class="panel-title">当前证据</h2>
+              <span class="panel-caption" id="evidenceCode">EVIDENCE / 06</span>
+            </div>
+            <div class="reason-card">
+              <div class="reason-header"><span>模型判定依据</span><strong id="confidenceSmall">96.4% CONFIDENCE</strong></div>
+              <ul class="reason-list" id="reasonList"></ul>
+              <div class="model-card">
+                <div class="model-label">NaHCO₃ 理论投加模型</div>
+                <div class="model-formula">1.68 × (<span>4 × VFA</span> − <span>ALK</span>)<br><span id="formulaResult">16,800 mg/L</span></div>
+              </div>
+              <div class="execution-note"><b>红线判定原则：</b>一旦跌破 pH &lt; 6.2 且 VFA/ALK &gt; 0.4，产甲烷菌群可能已遭受不可逆损伤。此时停止常规投药，转入停料 / 换料 / 排泥的应急流程。</div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="view" id="view-control" aria-label="智能调控">
+        <div class="view-heading">
+          <div>
+            <h2>分级调控方案编排</h2>
+            <p>依据实时指标自动匹配动作、剂量与复测节点；可拖动阈值观察策略切换。</p>
+          </div>
+          <div class="heading-meta">策略引擎 <span style="color:var(--green)">ACTIVE</span> · 最后计算 <span id="calcTime">刚刚</span></div>
+        </div>
+        <div class="control-grid">
+          <section class="panel">
+            <div class="panel-head">
+              <h2 class="panel-title">参数沙盘</h2>
+              <span class="panel-caption">WHAT-IF SIMULATOR</span>
+            </div>
+            <div class="control-builder">
+              <div class="field-grid">
+                <div class="field-item">
+                  <label for="inputPh"><span>pH</span><span id="inputPhValue">6.37</span></label>
+                  <input id="inputPh" type="range" min="5.8" max="7.6" step="0.01" value="6.37">
+                  <div class="field-range"><span>5.8</span><span>7.6</span></div>
+                </div>
+                <div class="field-item">
+                  <label for="inputVfa"><span>VFA (mg/L)</span><span id="inputVfaValue">7,600</span></label>
+                  <input id="inputVfa" type="range" min="1500" max="12000" step="50" value="7600">
+                  <div class="field-range"><span>1,500</span><span>12,000</span></div>
+                </div>
+                <div class="field-item">
+                  <label for="inputAlk"><span>ALK (mg/L)</span><span id="inputAlkValue">20,400</span></label>
+                  <input id="inputAlk" type="range" min="12000" max="28000" step="100" value="20400">
+                  <div class="field-range"><span>12,000</span><span>28,000</span></div>
+                </div>
+                <div class="field-item">
+                  <label for="inputCh4"><span>CH₄ (%)</span><span id="inputCh4Value">37.4</span></label>
+                  <input id="inputCh4" type="range" min="25" max="72" step="0.1" value="37.4">
+                  <div class="field-range"><span>25</span><span>72</span></div>
+                </div>
+                <div class="field-item">
+                  <label for="inputCo2"><span>CO₂ (%)</span><span id="inputCo2Value">36.7</span></label>
+                  <input id="inputCo2" type="range" min="24" max="52" step="0.1" value="36.7">
+                  <div class="field-range"><span>24</span><span>52</span></div>
+                </div>
+                <div class="field-item">
+                  <label for="inputYieldDrop"><span>产甲烷率降幅 (%)</span><span id="inputYieldDropValue">16.1</span></label>
+                  <input id="inputYieldDrop" type="range" min="0" max="45" step="0.1" value="16.1">
+                  <div class="field-range"><span>0</span><span>45</span></div>
+                </div>
+              </div>
+              <div class="calculator-result">
+                <span>当前自动判定</span>
+                <strong id="calculatorStage">失衡补碱</strong>
+              </div>
+              <div class="reset-row">
+                <button class="action-button" type="button" data-open-action>生成执行工单</button>
+                <button class="ghost-button" type="button" id="resetScenario">恢复演示数据</button>
+              </div>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h2 class="panel-title">执行时序</h2>
+              <span class="panel-caption" id="timelineCode">LEVEL 02 / IMBALANCE</span>
+            </div>
+            <div class="timeline" id="timeline"></div>
+            <div class="execution-note" id="controlNote" style="margin:0 16px 15px"><b>复测要求：</b>补碱后 2–4 h 复测 pH 与 VFA；第 3 天复测 VFA/ALK 与产气，避免一次性过量补碱造成钠离子抑制。</div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <dialog id="actionDialog" aria-labelledby="dialogTitle">
+    <div class="dialog-head">
+      <h3 id="dialogTitle">确认执行调控建议</h3>
+      <button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button>
+    </div>
+    <div class="dialog-body">
+      <div class="dialog-summary" id="dialogSummary"></div>
+    </div>
+    <div class="dialog-actions">
+      <button class="ghost-button" type="button" data-close-dialog>取消</button>
+      <button class="action-button" type="button" id="confirmAction">确认下达</button>
+    </div>
+  </dialog>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const scenarios = {
+        stable: {
+          name: "稳定运行",
+          short: "保持当前负荷，持续观察",
+          code: "LEVEL 00",
+          confidence: 98.7,
+          recovery: "+1.6%",
+          ph: 7.12,
+          vfa: 3150,
+          alk: 22400,
+          ch4: 63.2,
+          co2: 34.1,
+          yieldDrop: 2.5,
+          vfaGrowth: 2.0,
+          ratioGrowth: 1.0,
+          propAcetic: 1.2,
+          gas: 214,
+          feed: 26,
+          recirc: 20,
+          olr: 4.1,
+          srt: 18.4
+        },
+        early: {
+          name: "早期预警",
+          short: "VFA 连续增长，建议提前减负",
+          code: "LEVEL 01",
+          confidence: 94.8,
+          recovery: "+6.4%",
+          ph: 6.58,
+          vfa: 4380,
+          alk: 20100,
+          ch4: 49.4,
+          co2: 31.8,
+          yieldDrop: 11.6,
+          vfaGrowth: 36.0,
+          ratioGrowth: 12.0,
+          propAcetic: 2.4,
+          gas: 201,
+          feed: 22,
+          recirc: 31,
+          olr: 3.8,
+          srt: 19.2
+        },
+        imbalance: {
+          name: "失衡补碱",
+          short: "复合指标触发失衡层，立即降负荷并分次补碱",
+          code: "LEVEL 02",
+          confidence: 96.4,
+          recovery: "+11.8%",
+          ph: 6.37,
+          vfa: 7600,
+          alk: 20400,
+          ch4: 37.4,
+          co2: 36.7,
+          yieldDrop: 16.1,
+          vfaGrowth: 42.0,
+          ratioGrowth: 28.6,
+          propAcetic: 2.8,
+          gas: 184,
+          feed: 19,
+          recirc: 42,
+          olr: 3.5,
+          srt: 21.8
+        },
+        redline: {
+          name: "红线预警",
+          short: "菌群可能不可逆受损，转入应急止损",
+          code: "LEVEL 03",
+          confidence: 99.1,
+          recovery: "—",
+          ph: 6.08,
+          vfa: 10500,
+          alk: 21700,
+          ch4: 31.5,
+          co2: 39.4,
+          yieldDrop: 38.0,
+          vfaGrowth: 58.0,
+          ratioGrowth: 42.0,
+          propAcetic: 4.1,
+          gas: 117,
+          feed: 0,
+          recirc: 12,
+          olr: 0,
+          srt: 24.0
+        }
+      };
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const scenarioKeys = Object.keys(scenarios);
+      const requestedScenario = urlParams.get("scenario");
+      let currentScenario = scenarioKeys.includes(requestedScenario) ? requestedScenario : "imbalance";
+      let currentValues = { ...scenarios[currentScenario] };
+      let toastTimer;
+
+      const $ = (selector, root = document) => root.querySelector(selector);
+      const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+      const formatNumber = (value, digits = 0) => Number(value).toLocaleString("zh-CN", {
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits
+      });
+
+      const derive = (values) => {
+        const vfaAlk = values.vfa / values.alk;
+        const ch4Co2 = values.ch4 / values.co2;
+        return {
+          ...values,
+          vfaAlk,
+          ch4Co2,
+          phDisplay: values.ph.toFixed(2),
+          vfaAlkDisplay: vfaAlk.toFixed(3),
+          ch4Co2Display: ch4Co2.toFixed(3),
+          ch4Display: values.ch4.toFixed(1),
+          co2Display: values.co2.toFixed(1),
+          yieldDropDisplay: values.yieldDrop.toFixed(1)
+        };
+      };
+
+      const classify = (values) => {
+        const ratio = values.vfa / values.alk;
+        const gasRatio = values.ch4 / values.co2;
+        if (values.ph < 6.2 && ratio > 0.4 && gasRatio < 1 && values.ch4 < 40 && values.yieldDrop > 30) {
+          return "redline";
+        }
+        if (
+          gasRatio < 1.06 &&
+          values.yieldDrop > 15 &&
+          ratio > 0.25 &&
+          values.ph < 6.5 &&
+          values.ch4Drop > 10
+        ) {
+          return "imbalance";
+        }
+        if (
+          values.vfaGrowth > 30 ||
+          values.ratioGrowth > 10 ||
+          (values.propAcetic > 2 && gasRatio < 2)
+        ) {
+          return "early";
+        }
+        return "stable";
+      };
+
+      const stateStyles = {
+        stable: { color: "#2ce8a5", rgb: "44, 232, 165" },
+        early: { color: "#ffbd48", rgb: "255, 189, 72" },
+        imbalance: { color: "#ff8a42", rgb: "255, 138, 66" },
+        redline: { color: "#ff5667", rgb: "255, 86, 103" }
+      };
+
+      const forScenario = (scenarioKey) => {
+        const base = scenarios[scenarioKey];
+        const pressure = {
+          stable: 0,
+          early: 0.12,
+          imbalance: 0.2,
+          redline: 0.34
+        }[scenarioKey];
+        return derive({
+          ...base,
+          ch4Drop: base.yieldDrop + pressure * 100,
+          trendOffset: { stable: 0, early: 1, imbalance: 2, redline: 3 }[scenarioKey]
+        });
+      };
+
+      currentValues = forScenario(currentScenario);
+
+      const actionSets = {
+        stable: [
+          ["维持", "保持现有 OLR 与回流比", "自动"],
+          ["监控", "持续观察 VFA 增速与产气效率", "2 h"],
+          ["复测", "每日复核 VFA / ALK 与 pH", "每日"]
+        ],
+        early: [
+          ["降负荷", "OLR 较当前负荷降低 20%", "3.8 → 3.0"],
+          ["增回流", "提高回流量，稀释酸积累", "31 m³/h"],
+          ["延 SRT", "停留时间延长至 1.5 倍", "第 3 天"]
+        ],
+        imbalance: [
+          ["降负荷", "OLR 在当前基础上降低 20%–30%", "3.5 → 2.5"],
+          ["分次补碱", "NaHCO₃ 先投 50%，2–4 h 后复测", "8,400 mg/L"],
+          ["复测", "补碱后 2–4 h 复测 pH 和 VFA", "2–4 h"]
+        ],
+        redline: [
+          ["停止常规调控", "不再投加外源材料或碱源", "立即"],
+          ["应急停料", "停止进料，切断酸负荷来源", "0 m³/h"],
+          ["预备换料", "评估排泥与换料，执行每日监测", "每日"]
+        ]
+      };
+
+      const triggerSets = {
+        stable: [
+          "VFA/ALK 0.141，位于稳定区间",
+          "CH₄/CO₂ 1.853，产气结构正常",
+          "pH 7.12，维持产甲烷适宜环境"
+        ],
+        early: [
+          "VFA 连续 3 天较前一日增长 36.0%，超过 30% 阈值",
+          "VFA/ALK 连续 3 天增长 12.0%，超过 10% 阈值",
+          "丙酸/乙酸比 2.4，且 CH₄/CO₂ 低于 2"
+        ],
+        imbalance: [
+          "VFA/ALK 0.373，高于失衡阈值 0.25",
+          "CH₄/CO₂ 1.019，低于 1.06，甲烷浓度相对下降",
+          "pH 连续 3 天低于 6.5，产甲烷率下降 16.1%"
+        ],
+        redline: [
+          "pH 6.08，跌破 6.20 红线阈值",
+          "VFA/ALK 0.484，超过 0.40，酸积累严重",
+          "CH₄ 31.5%、产甲烷率下降 38.0%，菌群面临不可逆损伤"
+        ]
+      };
+
+      const reasonSets = {
+        stable: [
+          ["VFA / ALK", "0.141"],
+          ["CH₄ / CO₂", "1.853"],
+          ["pH", "7.12"],
+          ["VFA 日增速", "2.0%"],
+          ["产甲烷率降幅", "2.5%"]
+        ],
+        early: [
+          ["VFA 日增速", "36.0%"],
+          ["VFA/ALK 日增速", "12.0%"],
+          ["丙酸 / 乙酸", "2.40"],
+          ["VFA / ALK", "0.218"],
+          ["pH", "6.58"]
+        ],
+        imbalance: [
+          ["VFA / ALK", "0.373"],
+          ["CH₄ 单日相对下降", "14.8%"],
+          ["单位进料产甲烷率降幅", "16.1%"],
+          ["pH", "6.37"],
+          ["CH₄ / CO₂", "1.019"]
+        ],
+        redline: [
+          ["pH", "6.08"],
+          ["VFA / ALK", "0.484"],
+          ["CH₄ / CO₂", "0.800"],
+          ["CH₄ 浓度", "31.5%"],
+          ["产甲烷率降幅", "38.0%"]
+        ]
+      };
+
+      const timelineSets = {
+        stable: [
+          ["当前", "维持当前进料与回流策略", "AUTO"],
+          ["2 h", "复核在线指标波动", "MONITOR"],
+          ["每日", "离线化验与报表归档", "DAILY"]
+        ],
+        early: [
+          ["0 h", "OLR 降低 20%，回流量提高", "NOW"],
+          ["0–3 d", "保持降负荷，观察 VFA 趋势", "3 DAYS"],
+          ["第 3 天", "复测 VFA、VFA/ALK 与 pH", "DAY 3"]
+        ],
+        imbalance: [
+          ["0 h", "降负荷 20%–30%，投入首批 NaHCO₃", "NOW"],
+          ["2–4 h", "复测 pH 与 VFA，按结果投入余量", "RETEST"],
+          ["第 3 天", "复测 VFA/ALK 与产气，判断是否解除", "DAY 3"]
+        ],
+        redline: [
+          ["立即", "停止常规补碱，转为应急识别", "NOW"],
+          ["0–1 d", "停料 / 换料 / 排泥，切断酸负荷", "URGENT"],
+          ["每日", "监测产气，判断是否恢复或换料", "DAILY"]
+        ]
+      };
+
+      const noteSets = {
+        stable: "<b>运行提示：</b>当前指标稳定，无需执行剂量调控。保持数据采集与离线化验同步。",
+        early: "<b>复测要求：</b>调控后第 3 天复测 VFA、VFA/ALK 与 pH；若 VFA 仍连续增长，升级为失衡调控。延长 SRT 可能加剧 VFA 积累，需同步观察。",
+        imbalance: "<b>复测要求：</b>补碱后 2–4 h 复测 pH 与 VFA；第 3 天复测 VFA/ALK 与产气，避免一次性过量补碱造成钠离子抑制。",
+        redline: "<b>应急原则：</b>红线阶段调控收益极低，不设常规投药；必要时停料、换料或排泥，并将调控资源集中在后续恢复与溯源。"
+      };
+
+      const sparkBase = {
+        ph: [68, 66, 65, 62, 59, 55, 52],
+        vfa: [24, 29, 34, 43, 55, 68, 78],
+        alk: [76, 74, 71, 67, 65, 64, 62],
+        vfaalk: [23, 27, 33, 42, 55, 67, 79],
+        ch4: [78, 75, 72, 66, 58, 48, 41],
+        co2: [35, 38, 41, 46, 52, 60, 66],
+        ch4co2: [77, 74, 70, 64, 56, 47, 39],
+        gas: [84, 82, 78, 72, 63, 53, 45]
+      };
+
+      const scenarioShift = { stable: -8, early: 4, imbalance: 10, redline: 18 };
+
+      const setCssState = (state) => {
+        const style = stateStyles[state];
+        document.documentElement.style.setProperty("--state", style.color);
+        document.documentElement.style.setProperty("--state-rgb", style.rgb);
+        document.documentElement.style.setProperty("--state-soft", `rgba(${style.rgb}, 0.12)`);
+        document.documentElement.style.setProperty("--state-glow", `rgba(${style.rgb}, 0.32)`);
+      };
+
+      const updateMetricStatus = (values) => {
+        const marks = {
+          ph: values.ph < 6.2 ? "danger" : values.ph < 6.5 ? "warn" : "",
+          vfa: values.vfa > 7500 ? "danger" : values.vfa > 4000 ? "warn" : "",
+          alk: values.vfa / values.alk > 0.4 ? "danger" : "",
+          vfaalk: values.vfa / values.alk > 0.4 ? "danger" : values.vfa / values.alk > 0.25 ? "warn" : "",
+          ch4: values.ch4 < 40 ? "danger" : values.ch4 < 55 ? "warn" : "",
+          co2: "",
+          ch4co2: values.ch4 / values.co2 < 1 ? "danger" : values.ch4 / values.co2 < 1.06 ? "warn" : "",
+          gas: values.gas < 140 ? "danger" : values.gas < 205 ? "warn" : ""
+        };
+        Object.entries(marks).forEach(([key, classValue]) => {
+          const mark = $(`[data-status="${key}"]`);
+          if (mark) mark.className = `metric-state ${classValue}`.trim();
+        });
+      };
+
+      const writeValues = (values) => {
+        const displayValues = {
+          ph: values.phDisplay,
+          vfa: formatNumber(values.vfa),
+          alk: formatNumber(values.alk),
+          vfaalk: values.vfaAlkDisplay,
+          ch4: values.ch4Display,
+          co2: values.co2Display,
+          ch4co2: values.ch4Co2Display,
+          gas: formatNumber(values.gas),
+          feed: formatNumber(values.feed),
+          recirc: formatNumber(values.recirc),
+          olr: values.olr.toFixed(1),
+          srt: values.srt.toFixed(1)
+        };
+        $$("[data-value]").forEach((element) => {
+          const key = element.dataset.value;
+          if (Object.prototype.hasOwnProperty.call(displayValues, key)) {
+            element.textContent = displayValues[key];
+          }
+        });
+      };
+
+      const updateRatio = (state) => {
+        const ratio = currentValues.vfa / currentValues.alk;
+        const risk = Math.min(100, Math.max(0, Math.round(ratio / 0.5 * 100)));
+        const angle = -72 + risk * 1.44;
+        const needle = $("#ratioNeedle");
+        const gauge = $("#ratioGauge");
+        if (needle) needle.style.setProperty("--needle-angle", `${angle}deg`);
+        if (gauge) gauge.style.setProperty("--gauge-value", risk);
+        const riskElement = $('[data-value="risk"]');
+        if (riskElement) riskElement.textContent = risk;
+      };
+
+      const setActiveStage = (state) => {
+        $$(".stage-row").forEach((row) => {
+          row.classList.toggle("active", row.dataset.stageRow === state);
+        });
+      };
+
+      const setScenarioButtons = (state) => {
+        $$(".scenario-button").forEach((button) => {
+          button.classList.toggle("active", button.dataset.scenario === state);
+          button.setAttribute("aria-pressed", String(button.dataset.scenario === state));
+        });
+      };
+
+      const renderActions = (state) => {
+        const target = $("#overviewActions");
+        if (!target) return;
+        target.innerHTML = actionSets[state].map((action, index) => `
+          <div class="action-item">
+            <div class="action-index">${String(index + 1).padStart(2, "0")}</div>
+            <div class="action-copy"><strong>${action[0]}</strong><span>${action[1]}</span></div>
+            <div class="action-value">${action[2]}</div>
+          </div>
+        `).join("");
+        $("#strategyCode").textContent = currentValues.code;
+        const dose = 1.68 * (4 * currentValues.vfa - currentValues.alk);
+        const doseValue = $("#doseValue");
+        if (doseValue) {
+          if (state === "imbalance" && dose > 0) {
+            doseValue.innerHTML = `${formatNumber(dose)}<br><span style="font-size:8px;color:#668b9c">mg/L · 分 2 次</span>`;
+          } else if (state === "redline") {
+            doseValue.innerHTML = `停用<br><span style="font-size:8px;color:#668b9c">应急止损</span>`;
+          } else if (state === "early") {
+            doseValue.innerHTML = `暂不补碱<br><span style="font-size:8px;color:#668b9c">先减负观察</span>`;
+          } else {
+            doseValue.innerHTML = `无需投加<br><span style="font-size:8px;color:#668b9c">保持运行</span>`;
+          }
+        }
+      };
+
+      const updateTriggers = (state) => {
+        const triggerList = $("#triggerList");
+        if (!triggerList) return;
+        triggerList.innerHTML = triggerSets[state].map((item) => `<li>${item}</li>`).join("");
+      };
+
+      const updateReasons = (state) => {
+        const reasonList = $("#reasonList");
+        if (!reasonList) return;
+        reasonList.innerHTML = reasonSets[state].map(([name, value]) => `<li><span>${name}</span><em>${value}</em></li>`).join("");
+        $("#confidenceSmall").textContent = `${currentValues.confidence}% CONFIDENCE`;
+        $("#confidenceText").textContent = `${currentValues.confidence}%`;
+        $("#evidenceCode").textContent = `EVIDENCE / ${String(reasonSets[state].length).padStart(2, "0")}`;
+      };
+
+      const updateTimeline = (state) => {
+        const timeline = $("#timeline");
+        if (!timeline) return;
+        timeline.innerHTML = timelineSets[state].map(([time, copy, tag]) => `
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div class="timeline-copy"><strong>${copy}</strong><span>${tag}</span></div>
+            <div class="timeline-time">${time}</div>
+          </div>
+        `).join("");
+        $("#timelineCode").textContent = `${currentValues.code} / ${state.toUpperCase()}`;
+        $("#controlNote").innerHTML = noteSets[state];
+      };
+
+      const linePath = (values, width = 264, height = 88, xStart = 28, yStart = 18) => {
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const range = Math.max(max - min, 1);
+        return values.map((value, index) => {
+          const x = xStart + (index / (values.length - 1)) * width;
+          const y = yStart + height - ((value - min) / range) * height;
+          return `${index === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
+        }).join(" ");
+      };
+
+      const updateForecast = (state) => {
+        const series = {
+          stable: [84, 84.5, 85, 85.3, 85.2, 85.5, 85.8],
+          early: [72, 73, 76, 80, 84, 88, 91],
+          imbalance: [59, 61, 63, 67, 71, 76, 81],
+          redline: [56, 51, 46, 42, 40, 39, 40]
+        }[state];
+        const line = $("#forecastLine");
+        const area = $("#forecastArea");
+        const dot = $("#forecastDot");
+        if (!line || !area || !dot) return;
+        const path = linePath(series, 264, 82, 28, 18);
+        line.setAttribute("d", path);
+        area.setAttribute("d", `${path} L292 104 L28 104 Z`);
+        const points = series.map((value, index) => ({
+          x: 28 + index / (series.length - 1) * 264,
+          y: 18 + 82 - ((value - Math.min(...series)) / Math.max(Math.max(...series) - Math.min(...series), 1)) * 82
+        }));
+        dot.setAttribute("cx", points.at(-1).x.toFixed(1));
+        dot.setAttribute("cy", points.at(-1).y.toFixed(1));
+        $("#recoveryLabel").textContent = currentValues.recovery;
+      };
+
+      const updateSparklines = (state) => {
+        const shift = scenarioShift[state];
+        $$(".sensor-tile").forEach((tile) => {
+          const key = tile.dataset.sensor;
+          const values = [...sparkBase[key]];
+          const isFallingBad = ["ph", "alk", "ch4", "ch4co2", "gas"].includes(key);
+          values[values.length - 1] += shift * (isFallingBad ? -1 : 1);
+          const min = Math.min(...values);
+          const max = Math.max(...values);
+          const range = Math.max(max - min, 1);
+          const points = values.map((value, index) => {
+            const y = 31 - ((value - min) / range) * 25;
+            return `${(index / (values.length - 1) * 100).toFixed(1)},${y.toFixed(1)}`;
+          }).join(" ");
+          const polyline = $("polyline", tile);
+          if (polyline) polyline.setAttribute("points", points);
+        });
+        $$(".sensor-tile").forEach((tile) => {
+          const key = tile.dataset.sensor;
+          const warn = ["vfa", "ch4", "gas"].includes(key) && state !== "stable";
+          const danger = ["vfaalk", "ch4co2"].includes(key) && ["imbalance", "redline"].includes(state)
+            || key === "ph" && state === "redline";
+          tile.classList.toggle("warn", warn);
+          tile.classList.toggle("danger", danger);
+        });
+      };
+
+      const updateWideTrend = (state) => {
+        const data = {
+          stable: { vfa: [34, 33, 32, 31, 31, 30, 30], ph: [76, 77, 77, 78, 78, 79, 79], gas: [83, 84, 84, 85, 85, 86, 86] },
+          early: { vfa: [38, 41, 44, 49, 54, 60, 66], ph: [68, 67, 65, 63, 61, 59, 57], gas: [82, 80, 78, 75, 71, 67, 64] },
+          imbalance: { vfa: [47, 51, 56, 62, 69, 75, 82], ph: [59, 57, 54, 52, 49, 46, 43], gas: [78, 75, 71, 67, 62, 57, 52] },
+          redline: { vfa: [62, 68, 74, 81, 88, 93, 97], ph: [48, 46, 43, 40, 37, 34, 31], gas: [70, 65, 60, 54, 47, 41, 37] }
+        }[state];
+        const toPath = (values) => values.map((value, index) => {
+          const x = 36 + index / (values.length - 1) * 368;
+          const y = 204 - value / 100 * 180;
+          return `${index === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
+        }).join(" ");
+        const targets = { vfa: "trendVfa", ph: "trendPh", gas: "trendGas" };
+        Object.entries(targets).forEach(([valueKey, id]) => {
+          const path = $(`#${id}`);
+          if (path) path.setAttribute("d", toPath(data[valueKey]));
+        });
+      };
+
+      const updateEvents = (state) => {
+        const eventSets = {
+          stable: [
+            ["刚刚", "在线传感器数据完整同步", "正常"],
+            ["08:32", "离线化验：VFA/ALK 处于稳定区间", "正常"],
+            ["07:15", "产气量回到近 7 日均值", "正常"]
+          ],
+          early: [
+            ["刚刚", "VFA 日增速连续 3 天超过 30%", "预警"],
+            ["09:04", "VFA/ALK 连续 3 天增长超过 10%", "预警"],
+            ["08:18", "系统建议执行早期减负", "建议"]
+          ],
+          imbalance: [
+            ["刚刚", "VFA/ALK 越过 0.25 失衡阈值", "失衡"],
+            ["09:18", "CH₄/CO₂ 降至 1.019，甲烷浓度下降", "失衡"],
+            ["09:06", "pH 连续 3 天低于 6.5", "失衡"]
+          ],
+          redline: [
+            ["刚刚", "pH 跌破 6.20 红线阈值", "红线"],
+            ["09:22", "CH₄ 浓度低于 40%，菌群风险升高", "红线"],
+            ["09:15", "系统已锁定常规调控，转入应急识别", "应急"]
+          ]
+        }[state];
+        const list = $("#eventList");
+        if (!list) return;
+        list.innerHTML = eventSets.map(([time, copy, level]) => {
+          const levelClass = ["预警", "建议"].includes(level) ? "warn" : ["失衡", "红线", "应急"].includes(level) ? "danger" : "";
+          return `<div class="event-row"><span class="event-time">${time}</span><span class="event-copy">${copy}</span><span class="event-level ${levelClass}">${level}</span></div>`;
+        }).join("");
+      };
+
+      const render = () => {
+        const state = classify(currentValues);
+        currentValues = derive(currentValues);
+        setCssState(state);
+        writeValues(currentValues);
+        updateMetricStatus(currentValues);
+        updateRatio(state);
+        updateTriggers(state);
+        renderActions(state);
+        updateReasons(state);
+        updateTimeline(state);
+        updateForecast(state);
+        updateSparklines(state);
+        updateWideTrend(state);
+        updateEvents(state);
+        setActiveStage(state);
+        setScenarioButtons(currentScenario);
+
+        const stageName = scenarios[state].name;
+        const descriptions = {
+          stable: "复合指标处于稳定区间，维持当前运行并持续观察。",
+          early: "趋势指标先行变化，建议通过减负与回流稀释阻断酸积累。",
+          imbalance: "复合指标已触发失衡层，建议立即降负荷并分次补碱。",
+          redline: "红线条件成立，菌群可能不可逆损伤，转入应急止损。"
+        };
+        $("#stateName").textContent = stageName;
+        $("#stateDescription").textContent = descriptions[state];
+        $("#analysisCurrent").textContent = stageName;
+        $("#calculatorStage").textContent = stageName;
+
+        const dose = 1.68 * (4 * currentValues.vfa - currentValues.alk);
+        $("#formulaResult").textContent = state === "imbalance" && dose > 0
+          ? `${formatNumber(dose)} mg/L`
+          : "当前层级不启用常规补碱";
+
+        const summary = state === "stable"
+          ? "当前各项指标稳定，无需投剂。系统将继续监测趋势并保留自动执行能力。"
+          : state === "early"
+            ? "将 OLR 降低 20%，增加回流稀释，并以第 3 天复测结果决定是否升级为失衡调控。"
+            : state === "imbalance"
+              ? `将 OLR 降低 20%–30%，理论 NaHCO₃ 投加量 ${formatNumber(dose)} mg/L，分 2 次投加，并在 2–4 h 后复测。`
+              : "系统将停止常规补碱，转入停料 / 换料 / 排泥应急流程，并每日监测产气。";
+        $("#dialogSummary").innerHTML = `<strong>${stageName}</strong>${summary}`;
+      };
+
+      const showToast = (message) => {
+        const toast = $("#toast");
+        toast.textContent = message;
+        toast.classList.add("show");
+        window.clearTimeout(toastTimer);
+        toastTimer = window.setTimeout(() => toast.classList.remove("show"), 2600);
+      };
+
+      const setScenario = (key, announce = true) => {
+        currentScenario = key;
+        currentValues = forScenario(key);
+        render();
+        if (announce) showToast(`已切换至“${scenarios[key].name}”演示场景，调控策略与预测已同步。`);
+      };
+
+      const syncControlInputs = () => {
+        const mapping = {
+          inputPh: currentValues.ph,
+          inputVfa: currentValues.vfa,
+          inputAlk: currentValues.alk,
+          inputCh4: currentValues.ch4,
+          inputCo2: currentValues.co2,
+          inputYieldDrop: currentValues.yieldDrop
+        };
+        Object.entries(mapping).forEach(([id, value]) => {
+          const input = $(`#${id}`);
+          if (input) input.value = value;
+        });
+      };
+
+      const updateInputLabels = () => {
+        $("#inputPhValue").textContent = Number($("#inputPh").value).toFixed(2);
+        $("#inputVfaValue").textContent = formatNumber($("#inputVfa").value);
+        $("#inputAlkValue").textContent = formatNumber($("#inputAlk").value);
+        $("#inputCh4Value").textContent = Number($("#inputCh4").value).toFixed(1);
+        $("#inputCo2Value").textContent = Number($("#inputCo2").value).toFixed(1);
+        $("#inputYieldDropValue").textContent = Number($("#inputYieldDrop").value).toFixed(1);
+      };
+
+      const readControlInputs = () => {
+        const ph = Number($("#inputPh").value);
+        const vfa = Number($("#inputVfa").value);
+        const alk = Number($("#inputAlk").value);
+        const ch4 = Number($("#inputCh4").value);
+        const co2 = Number($("#inputCo2").value);
+        const yieldDrop = Number($("#inputYieldDrop").value);
+        const ratio = vfa / alk;
+        const gasRatio = ch4 / co2;
+        return derive({
+          ...currentValues,
+          name: "沙盘方案",
+          short: "由参数沙盘实时生成",
+          confidence: 92.6,
+          recovery: yieldDrop > 30 ? "—" : yieldDrop > 15 ? "+8.6%" : "+4.2%",
+          ph,
+          vfa,
+          alk,
+          ch4,
+          co2,
+          yieldDrop,
+          ch4Drop: (1 - gasRatio / 1.85) * 100 + Math.max(0, 6.5 - ph) * 8,
+          vfaGrowth: ratio > 0.25 ? Math.min(70, 18 + ratio * 100) : ratio > 0.15 ? 16 : 3,
+          ratioGrowth: ratio > 0.25 ? Math.min(55, ratio * 90) : ratio > 0.15 ? 8 : 2,
+          propAcetic: ratio > 0.25 ? 2.6 : 1.4,
+          gas: Math.max(50, Math.round(235 - yieldDrop * 2.4)),
+          feed: currentValues.feed,
+          recirc: currentValues.recirc,
+          olr: currentValues.olr,
+          srt: currentValues.srt
+        });
+      };
+
+      const updateFromInputs = () => {
+        updateInputLabels();
+        currentValues = readControlInputs();
+        render();
+        $("#calcTime").textContent = "刚刚";
+      };
+
+      const activateView = (viewName) => {
+        $$(".tab-button").forEach((tab) => {
+          const active = tab.dataset.view === viewName;
+          tab.classList.toggle("active", active);
+          tab.setAttribute("aria-selected", String(active));
+        });
+        $$(".view").forEach((view) => {
+          view.classList.toggle("active", view.id === `view-${viewName}`);
+        });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      };
+
+      $$(".tab-button").forEach((button) => {
+        button.addEventListener("click", () => activateView(button.dataset.view));
+      });
+
+      $$(".scenario-button").forEach((button) => {
+        button.addEventListener("click", () => setScenario(button.dataset.scenario));
+      });
+
+      $$("[data-open-action]").forEach((button) => {
+        button.addEventListener("click", () => $("#actionDialog").showModal());
+      });
+
+      $$("[data-close-dialog]").forEach((button) => {
+        button.addEventListener("click", () => $("#actionDialog").close());
+      });
+
+      $("#actionDialog").addEventListener("click", (event) => {
+        if (event.target === $("#actionDialog")) $("#actionDialog").close();
+      });
+
+      $("#confirmAction").addEventListener("click", () => {
+        $("#actionDialog").close();
+        showToast("调控建议已生成执行工单，复测节点将自动提醒。");
+      });
+
+      $$("[data-jump-control]").forEach((button) => {
+        button.addEventListener("click", () => {
+          $('[data-view="control"]').click();
+        });
+      });
+
+      ["inputPh", "inputVfa", "inputAlk", "inputCh4", "inputCo2", "inputYieldDrop"].forEach((id) => {
+        const input = $(`#${id}`);
+        if (input) input.addEventListener("input", updateFromInputs);
+      });
+
+      $("#resetScenario").addEventListener("click", () => {
+        setScenario(currentScenario, false);
+        syncControlInputs();
+        updateInputLabels();
+        showToast("已恢复当前场景的演示数据。");
+      });
+
+      const updateClock = () => {
+        const now = new Date();
+        const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, "0");
+        const d = String(now.getDate()).padStart(2, "0");
+        $("#clockDate").textContent = `${y}-${m}-${d} · 星期${weekdays[now.getDay()]}`;
+        $("#clockTime").textContent = now.toLocaleTimeString("zh-CN", { hour12: false });
+      };
+
+      updateClock();
+      window.setInterval(updateClock, 1000);
+      window.setInterval(() => {
+        $("#lastUpdate").textContent = "刚刚";
+      }, 5000);
+
+      render();
+      syncControlInputs();
+      updateInputLabels();
+
+      const requestedView = urlParams.get("view");
+      if (["overview", "monitor", "analysis", "control"].includes(requestedView)) {
+        activateView(requestedView);
+      }
+    })();
+  </script>
+</body>
+</html>
