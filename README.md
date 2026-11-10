@@ -12,7 +12,15 @@
 
 ## 在线访问
 
-启用 GitHub Pages 后，访问：
+当前可用固定地址：
+
+`https://gcore.jsdelivr.net/gh/Kong-0626/anaerobic-smart-control@v1.1.0/anaerobic-smart-control.svg`
+
+备用线路：
+
+`https://testingcf.jsdelivr.net/gh/Kong-0626/anaerobic-smart-control@v1.1.0/anaerobic-smart-control.svg`
+
+原始 GitHub Pages 地址：
 
 `https://kong-0626.github.io/anaerobic-smart-control/`
 
