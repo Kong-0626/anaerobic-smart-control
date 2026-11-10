@@ -1608,14 +1608,41 @@
     .field-item label {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       gap: 10px;
       color: #96bac8;
       font-size: 10.5px;
     }
 
-    .field-item label span {
+    .field-input {
+      width: 86px;
+      padding: 5px 7px;
+      border: 1px solid rgba(78, 181, 212, 0.24);
+      border-radius: 2px;
+      outline: 0;
+      background: rgba(2, 11, 20, 0.78);
       color: #d9f4fb;
       font-family: var(--mono);
+      font-size: 10px;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+      transition: border-color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .field-input:hover {
+      border-color: rgba(55, 219, 242, 0.42);
+    }
+
+    .field-input:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 2px rgba(55, 219, 242, 0.1);
+    }
+
+    .field-unit {
+      margin-left: 3px;
+      color: #7299aa;
+      font-size: 9px;
+      font-weight: 400;
     }
 
     .field-item input[type="range"] {
@@ -2628,38 +2655,38 @@
             <div class="control-builder">
               <div class="field-grid">
                 <div class="field-item">
-                  <label for="inputPh"><span>pH</span><span id="inputPhValue">6.37</span></label>
+                  <label for="inputPhNumber"><span>pH</span><input class="field-input" id="inputPhNumber" type="number" inputmode="decimal" min="5.8" max="7.6" step="0.01" value="6.37" aria-label="输入 pH"></label>
                   <input id="inputPh" type="range" min="5.8" max="7.6" step="0.01" value="6.37">
                   <div class="field-range"><span>5.8</span><span>7.6</span></div>
                 </div>
                 <div class="field-item">
-                  <label for="inputVfa"><span>VFA (mg/L)</span><span id="inputVfaValue">7,600</span></label>
+                  <label for="inputVfaNumber"><span>VFA <span class="field-unit">mg/L</span></span><input class="field-input" id="inputVfaNumber" type="number" inputmode="numeric" min="1500" max="12000" step="50" value="7600" aria-label="输入 VFA"></label>
                   <input id="inputVfa" type="range" min="1500" max="12000" step="50" value="7600">
                   <div class="field-range"><span>1,500</span><span>12,000</span></div>
                 </div>
                 <div class="field-item">
-                  <label for="inputAlk"><span>ALK (mg/L)</span><span id="inputAlkValue">20,400</span></label>
+                  <label for="inputAlkNumber"><span>ALK <span class="field-unit">mg/L</span></span><input class="field-input" id="inputAlkNumber" type="number" inputmode="numeric" min="12000" max="28000" step="100" value="20400" aria-label="输入 ALK"></label>
                   <input id="inputAlk" type="range" min="12000" max="28000" step="100" value="20400">
                   <div class="field-range"><span>12,000</span><span>28,000</span></div>
                 </div>
                 <div class="field-item">
-                  <label for="inputCh4"><span>CH₄ (%)</span><span id="inputCh4Value">37.4</span></label>
+                  <label for="inputCh4Number"><span>CH₄ <span class="field-unit">%</span></span><input class="field-input" id="inputCh4Number" type="number" inputmode="decimal" min="25" max="72" step="0.1" value="37.4" aria-label="输入甲烷浓度"></label>
                   <input id="inputCh4" type="range" min="25" max="72" step="0.1" value="37.4">
                   <div class="field-range"><span>25</span><span>72</span></div>
                 </div>
                 <div class="field-item">
-                  <label for="inputCo2"><span>CO₂ (%)</span><span id="inputCo2Value">36.7</span></label>
+                  <label for="inputCo2Number"><span>CO₂ <span class="field-unit">%</span></span><input class="field-input" id="inputCo2Number" type="number" inputmode="decimal" min="24" max="52" step="0.1" value="36.7" aria-label="输入二氧化碳浓度"></label>
                   <input id="inputCo2" type="range" min="24" max="52" step="0.1" value="36.7">
                   <div class="field-range"><span>24</span><span>52</span></div>
                 </div>
                 <div class="field-item">
-                  <label for="inputYieldDrop"><span>产甲烷率降幅 (%)</span><span id="inputYieldDropValue">16.1</span></label>
+                  <label for="inputYieldDropNumber"><span>产甲烷率降幅 <span class="field-unit">%</span></span><input class="field-input" id="inputYieldDropNumber" type="number" inputmode="decimal" min="0" max="45" step="0.1" value="16.1" aria-label="输入产甲烷率降幅"></label>
                   <input id="inputYieldDrop" type="range" min="0" max="45" step="0.1" value="16.1">
                   <div class="field-range"><span>0</span><span>45</span></div>
                 </div>
               </div>
               <div class="calculator-result">
-                <span>当前自动判定</span>
+                <span>当前自动判定<br><span style="font-size:8px;color:#7198aa">修改上方数值后即时联动</span></span>
                 <strong id="calculatorStage">失衡补碱</strong>
               </div>
               <div class="reset-row">
@@ -3288,27 +3315,30 @@
 
       const syncControlInputs = () => {
         const mapping = {
-          inputPh: currentValues.ph,
-          inputVfa: currentValues.vfa,
-          inputAlk: currentValues.alk,
-          inputCh4: currentValues.ch4,
-          inputCo2: currentValues.co2,
-          inputYieldDrop: currentValues.yieldDrop
+          inputPh: [currentValues.ph, "inputPhNumber", 2],
+          inputVfa: [currentValues.vfa, "inputVfaNumber", 0],
+          inputAlk: [currentValues.alk, "inputAlkNumber", 0],
+          inputCh4: [currentValues.ch4, "inputCh4Number", 1],
+          inputCo2: [currentValues.co2, "inputCo2Number", 1],
+          inputYieldDrop: [currentValues.yieldDrop, "inputYieldDropNumber", 1]
         };
-        Object.entries(mapping).forEach(([id, value]) => {
-          const input = $(`#${id}`);
-          if (input) input.value = value;
+        Object.entries(mapping).forEach(([rangeId, config]) => {
+          const [value, numberId, digits] = config;
+          const range = $(`#${rangeId}`);
+          const numberInput = $(`#${numberId}`);
+          if (range) range.value = value;
+          if (numberInput) numberInput.value = Number(value).toFixed(digits);
         });
       };
 
-      const updateInputLabels = () => {
-        $("#inputPhValue").textContent = Number($("#inputPh").value).toFixed(2);
-        $("#inputVfaValue").textContent = formatNumber($("#inputVfa").value);
-        $("#inputAlkValue").textContent = formatNumber($("#inputAlk").value);
-        $("#inputCh4Value").textContent = Number($("#inputCh4").value).toFixed(1);
-        $("#inputCo2Value").textContent = Number($("#inputCo2").value).toFixed(1);
-        $("#inputYieldDropValue").textContent = Number($("#inputYieldDrop").value).toFixed(1);
-      };
+      const inputPairs = [
+        ["inputPh", "inputPhNumber", 2],
+        ["inputVfa", "inputVfaNumber", 0],
+        ["inputAlk", "inputAlkNumber", 0],
+        ["inputCh4", "inputCh4Number", 1],
+        ["inputCo2", "inputCo2Number", 1],
+        ["inputYieldDrop", "inputYieldDropNumber", 1]
+      ];
 
       const readControlInputs = () => {
         const ph = Number($("#inputPh").value);
@@ -3344,7 +3374,6 @@
       };
 
       const updateFromInputs = () => {
-        updateInputLabels();
         currentValues = readControlInputs();
         render();
         $("#calcTime").textContent = "刚刚";
@@ -3393,15 +3422,33 @@
         });
       });
 
-      ["inputPh", "inputVfa", "inputAlk", "inputCh4", "inputCo2", "inputYieldDrop"].forEach((id) => {
-        const input = $(`#${id}`);
-        if (input) input.addEventListener("input", updateFromInputs);
+      inputPairs.forEach(([rangeId, numberId, digits]) => {
+        const range = $(`#${rangeId}`);
+        const numberInput = $(`#${numberId}`);
+        if (!range || !numberInput) return;
+
+        range.addEventListener("input", () => {
+          if (document.activeElement !== numberInput) {
+            numberInput.value = Number(range.value).toFixed(digits);
+          }
+          updateFromInputs();
+        });
+
+        numberInput.addEventListener("input", () => {
+          const value = Number(numberInput.value);
+          const min = Number(numberInput.min);
+          const max = Number(numberInput.max);
+          const valid = numberInput.value !== "" && Number.isFinite(value) && value >= min && value <= max;
+          numberInput.setCustomValidity(valid ? "" : `请输入 ${min} 至 ${max} 之间的数值`);
+          if (!valid) return;
+          range.value = value;
+          updateFromInputs();
+        });
       });
 
       $("#resetScenario").addEventListener("click", () => {
         setScenario(currentScenario, false);
         syncControlInputs();
-        updateInputLabels();
         showToast("已恢复当前场景的演示数据。");
       });
 
@@ -3423,7 +3470,6 @@
 
       render();
       syncControlInputs();
-      updateInputLabels();
 
       const requestedView = urlParams.get("view");
       if (["overview", "monitor", "analysis", "control"].includes(requestedView)) {
